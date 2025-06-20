@@ -29,6 +29,9 @@ setup(
         "click>=8.1.0",
         "requests>=2.31.0",
         "rich>=13.0.0",
+        "playwright>=1.40.0",
+        "beautifulsoup4>=4.12.0",
+        "lxml>=4.9.0",
     ],
     entry_points={
         "console_scripts": [

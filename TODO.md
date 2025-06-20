@@ -1,6 +1,7 @@
 # TODO - Command Line Tool Development
 
 ## Phase 1
+- [x] Set up Python project structure
 - [ ] Web search from the command line
 - [ ] Intelligent shell functionality
 - [ ] File system search capabilities

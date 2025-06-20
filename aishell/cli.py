@@ -1,7 +1,9 @@
+import asyncio
 import click
 from rich.console import Console
 
 from aishell import __version__
+from aishell.search.web_search import perform_web_search
 
 console = Console()
 
@@ -17,11 +19,15 @@ def main(ctx):
 @main.command()
 @click.argument('query', nargs=-1, required=True)
 @click.option('--limit', '-l', default=10, help='Number of results to return')
-def search(query, limit):
-    """Web search from the command line."""
+@click.option('--engine', '-e', default='google', type=click.Choice(['google', 'duckduckgo']), help='Search engine to use')
+@click.option('--show-browser', '-s', is_flag=True, help='Show browser window (disable headless mode)')
+def search(query, limit, engine, show_browser):
+    """Web search from the command line using Playwright and headless Chrome."""
     query_str = ' '.join(query)
-    console.print(f"[blue]Searching for:[/blue] {query_str}")
-    console.print(f"[yellow]Web search functionality coming soon...[/yellow]")
+    headless = not show_browser
+    
+    # Run the async search function
+    asyncio.run(perform_web_search(query_str, limit=limit, engine=engine, headless=headless))
 
 
 @main.command()

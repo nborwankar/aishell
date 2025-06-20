@@ -71,3 +71,52 @@ aishell/
 1. Implement web search functionality
 2. Implement intelligent shell
 3. Implement file system search
+
+## Phase 1 - Step 2: Web Search with Playwright (2025-06-20)
+
+### Updated Dependencies
+- Added Playwright for browser automation
+- Added BeautifulSoup4 and lxml for HTML parsing
+- Added pytest-asyncio for async testing support
+
+### Implemented Web Search Module
+Created `aishell/search/web_search.py` with:
+- `WebSearcher` class using async context manager pattern
+- Support for headless Chrome via Playwright
+- Google search implementation with result parsing
+- DuckDuckGo search implementation as alternative
+- Rich console output with formatted tables and panels
+- Error handling and graceful degradation
+
+### Updated CLI for Web Search
+Modified `aishell/cli.py` to:
+- Import and use the async web search functionality
+- Added `--engine` option to choose between Google and DuckDuckGo
+- Added `--show-browser` flag to disable headless mode for debugging
+- Integrated asyncio for running async search functions
+
+### Created Playwright Installation Script
+- Added `scripts/install_playwright.py` for easy browser installation
+- Made script executable for convenience
+- Includes helpful notes about system dependencies
+
+### Updated Documentation
+- Modified README.md with Playwright installation instructions
+- Added usage examples for web search with various options
+- Documented the need to install Playwright browsers
+
+### Files Modified/Created:
+- `/Users/nitin/Projects/github/aishell/requirements.txt` (added Playwright dependencies)
+- `/Users/nitin/Projects/github/aishell/setup.py` (updated install_requires)
+- `/Users/nitin/Projects/github/aishell/aishell/search/web_search.py` (new)
+- `/Users/nitin/Projects/github/aishell/aishell/cli.py` (added web search implementation)
+- `/Users/nitin/Projects/github/aishell/scripts/install_playwright.py` (new)
+- `/Users/nitin/Projects/github/aishell/README.md` (updated with Playwright setup)
+
+### Implementation Details:
+- Uses Playwright's async API for better performance
+- Headless Chrome by default, with option to show browser
+- Parses search results using BeautifulSoup
+- Displays results in both table and detailed panel format
+- Supports limiting number of results
+- Handles errors gracefully with informative messages

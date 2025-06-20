@@ -35,6 +35,11 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install in development mode
 pip install -e .
+
+# Install Playwright browsers (required for web search)
+python scripts/install_playwright.py
+# OR directly:
+python -m playwright install
 ```
 
 ## Usage
@@ -43,8 +48,14 @@ pip install -e .
 # Run the tool
 aishell
 
-# Web search
+# Web search (Google by default)
 aishell search "python tutorials"
+
+# Web search with options
+aishell search "machine learning" --limit 5 --engine duckduckgo
+
+# Show browser window (disable headless mode)
+aishell search "openai gpt-4" --show-browser
 
 # File search
 aishell find "*.py" --content "import requests"
