@@ -213,3 +213,77 @@ Created `aishell/shell/intelligent_shell.py` with comprehensive shell features:
 - `/Users/nitin/Projects/github/aishell/aishell/cli.py` (added NL provider options)
 - `/Users/nitin/Projects/github/aishell/requirements.txt` (added optional dependencies)
 - `/Users/nitin/Projects/github/aishell/README.md` (added NL documentation)
+
+## Phase 1 - Step 4: macOS Native File System Search (2025-06-20)
+
+### Implemented macOS-Optimized File Search
+Created `aishell/search/file_search.py` with native macOS integration:
+
+#### Core Features:
+1. **Spotlight Integration (mdfind)**
+   - Primary search method using macOS Spotlight
+   - Content search with `kMDItemTextContent`
+   - File type filtering with `kMDItemContentType`
+   - Metadata-aware searching
+   - Fast indexing-based results
+
+2. **BSD Find Fallback**
+   - Secondary search using BSD find command
+   - Pattern matching with `-name` and `-iname`
+   - Size filtering with human-readable formats
+   - Date filtering with relative terms
+   - Excludes common directories (.git, node_modules, etc.)
+
+3. **Content Search with grep**
+   - Line-by-line content matching
+   - Case-insensitive search support
+   - Limited matches per file for performance
+   - Integration with both Spotlight and find results
+
+4. **macOS Metadata Integration**
+   - Uses `mdls` to extract file metadata
+   - Content type identification
+   - File kind detection
+   - Last used date tracking
+
+#### Search Capabilities:
+- **Pattern Matching**: Wildcard support for file names
+- **Content Search**: Text search within files using grep
+- **File Type Filtering**: image, video, audio, text, code, pdf, etc.
+- **Size Filtering**: Human-readable formats (">1MB", "<500KB")
+- **Date Filtering**: Relative terms ("today", "last week", "yesterday")
+- **Path Scoping**: Search within specific directories
+- **Result Limiting**: Configurable maximum results
+- **Progress Indication**: Real-time search progress
+
+### Updated CLI Commands
+1. **Enhanced `find` command**:
+   - Uses Spotlight by default with `--no-spotlight` fallback
+   - Multiple filter options (type, size, date, content)
+   - Tree view display option
+   - Comprehensive help with examples
+
+2. **New `spotlight` command**:
+   - Direct Spotlight query interface
+   - Supports native Spotlight query syntax
+   - Quick search for any content or metadata
+
+### Display Features
+- **Formatted Tables**: Rich console tables with file info
+- **Content Highlighting**: Shows matching lines for content searches
+- **Tree View**: Hierarchical display of search results
+- **Size/Date Formatting**: Human-readable file sizes and relative dates
+- **Progress Indicators**: Visual feedback during search operations
+
+### Files Modified/Created:
+- `/Users/nitin/Projects/github/aishell/aishell/search/file_search.py` (new - macOS-optimized)
+- `/Users/nitin/Projects/github/aishell/aishell/cli.py` (added find and spotlight commands)
+- `/Users/nitin/Projects/github/aishell/README.md` (added file search examples)
+
+### Implementation Highlights:
+- Leverages macOS Spotlight for fast, indexed searching
+- Graceful fallback to BSD find when Spotlight unavailable
+- Native tool integration (mdfind, find, grep, mdls)
+- Rich formatting and progress indication
+- Supports both simple and advanced search patterns
+- Optimized for macOS filesystem and metadata

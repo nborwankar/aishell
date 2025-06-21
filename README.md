@@ -82,8 +82,17 @@ aishell search "machine learning" --limit 5 --engine duckduckgo
 # Show browser window (disable headless mode)
 aishell search "openai gpt-4" --show-browser
 
-# File search
-aishell find "*.py" --content "import requests"
+# File search (uses macOS Spotlight by default)
+aishell find "*.py"                    # Find all Python files
+aishell find "config" --content "api"  # Find files named 'config' containing 'api'
+aishell find "*" --type image          # Find all images using Spotlight
+aishell find "*" --size ">1MB"         # Find files larger than 1MB
+aishell find "*" --date today          # Find files modified today
+aishell find "*.js" --no-spotlight     # Use BSD find instead of Spotlight
+
+# Quick Spotlight search
+aishell spotlight "machine learning"   # Search everything with Spotlight
+aishell spotlight kind:image          # Use Spotlight query syntax
 
 # Interactive shell
 aishell shell
