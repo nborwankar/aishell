@@ -24,7 +24,7 @@ from aishell.llm import (
     GeminiLLMProvider,
 )
 from aishell.mcp import MCPClient, MCPMessage, NLToMCPTranslator
-from aishell.utils import get_transcript_manager
+from aishell.utils import get_transcript_manager, get_env_manager, load_env_on_startup
 
 console = Console()
 
@@ -143,6 +143,9 @@ class IntelligentShell:
         self.env_vars: Dict[str, str] = {}
         self.current_dir = Path.cwd()
         
+        # Load environment variables
+        load_env_on_startup(verbose=True)
+        
         # Initialize NL converter
         self.nl_converter: Optional[NLConverter] = None
         try:
@@ -209,10 +212,12 @@ class IntelligentShell:
             return self._handle_collate(command)
         elif command.startswith('generate') and (command == 'generate' or command.startswith('generate ')):
             return self._handle_generate(command)
+        elif command.startswith('env') and (command == 'env' or command.startswith('env ')):
+            return self._handle_env(command)
         
         # Default to LLM command if no other built-in matches
         # Check if it looks like a natural language query
-        if not any(command.startswith(cmd) for cmd in ['cd', 'pwd', 'export', 'alias', 'history', 'clear', 'cls', 'help', 'exit', 'quit']):
+        if not any(command.startswith(cmd) for cmd in ['cd', 'pwd', 'export', 'alias', 'history', 'clear', 'cls', 'help', 'exit', 'quit', 'env']):
             # Try as LLM command with the entire input as query
             return self._handle_llm(f'llm "{command}"')
         
@@ -441,6 +446,7 @@ class IntelligentShell:
             ("collate \"query\"", "Collate responses across LLM providers"),
             ("mcp <url> <cmd>", "Interact with MCP servers"),
             ("generate <lang> <desc>", "Generate code in specified language"),
+            ("env <subcommand>", "Manage environment variables"),
         ]
         
         # Add NL command if available
@@ -499,7 +505,10 @@ class IntelligentShell:
                 else:
                     i += 1
             
-            # Create provider
+            # Create provider with env config
+            env_manager = get_env_manager()
+            config = env_manager.get_llm_config(provider_name)
+            
             provider_map = {
                 'claude': ClaudeLLMProvider,
                 'openai': OpenAILLMProvider,
@@ -510,7 +519,20 @@ class IntelligentShell:
             if provider_name not in provider_map:
                 return 1, "", f"Unknown provider: {provider_name}. Use: claude, openai, ollama, gemini"
             
-            provider = provider_map[provider_name]()
+            # Create provider with configuration from env
+            if provider_name == 'claude':
+                provider = provider_map[provider_name](api_key=config.get('api_key'))
+            elif provider_name == 'openai':
+                provider = provider_map[provider_name](
+                    api_key=config.get('api_key'),
+                    base_url=config.get('base_url')
+                )
+            elif provider_name == 'gemini':
+                provider = provider_map[provider_name](api_key=config.get('api_key'))
+            elif provider_name == 'ollama':
+                provider = provider_map[provider_name](base_url=config.get('base_url'))
+            else:
+                provider = provider_map[provider_name]()
             
             # Run the query
             async def run_query():
@@ -647,12 +669,25 @@ class IntelligentShell:
                         break
             
             async def run_comparison():
-                provider_map = {
-                    'claude': ClaudeLLMProvider(),
-                    'openai': OpenAILLMProvider(),
-                    'ollama': OllamaLLMProvider(),
-                    'gemini': GeminiLLMProvider(),
-                }
+                env_manager = get_env_manager()
+                
+                # Create providers with env config
+                provider_instances = {}
+                for name in ['claude', 'openai', 'ollama', 'gemini']:
+                    config = env_manager.get_llm_config(name)
+                    if name == 'claude':
+                        provider_instances[name] = ClaudeLLMProvider(api_key=config.get('api_key'))
+                    elif name == 'openai':
+                        provider_instances[name] = OpenAILLMProvider(
+                            api_key=config.get('api_key'),
+                            base_url=config.get('base_url')
+                        )
+                    elif name == 'gemini':
+                        provider_instances[name] = GeminiLLMProvider(api_key=config.get('api_key'))
+                    elif name == 'ollama':
+                        provider_instances[name] = OllamaLLMProvider(base_url=config.get('base_url'))
+                
+                provider_map = provider_instances
                 
                 console.print(f"[blue]Comparing across {len(providers)} providers...[/blue]")
                 
@@ -766,3 +801,99 @@ Task: {description}"""
             
         except Exception as e:
             return 1, "", f"Generate error: {str(e)}"
+    
+    def _handle_env(self, command: str) -> Tuple[int, str, str]:
+        """Handle environment variable commands."""
+        try:
+            parts = shlex.split(command)
+            if len(parts) < 2:
+                help_text = """Usage: env <subcommand> [args]
+
+Subcommands:
+  reload              Reload .env file
+  show [filter]       Show environment variables (optionally filtered)
+  get <key>           Get value of environment variable
+  set <key> <value>   Set environment variable (runtime only)
+  llm <provider>      Show LLM configuration for provider
+
+Examples:
+  env reload
+  env show API
+  env get ANTHROPIC_API_KEY
+  env set TEMP_VAR value
+  env llm claude"""
+                console.print(help_text)
+                return 0, "", ""
+            
+            env_manager = get_env_manager()
+            subcommand = parts[1].lower()
+            
+            if subcommand == "reload":
+                success = env_manager.reload_env()
+                return 0 if success else 1, "", ""
+            
+            elif subcommand == "show":
+                filter_pattern = parts[2] if len(parts) > 2 else None
+                env_manager.show_env(filter_pattern)
+                return 0, "", ""
+            
+            elif subcommand == "get":
+                if len(parts) < 3:
+                    return 1, "", "Usage: env get <key>"
+                
+                key = parts[2]
+                value = env_manager.get_var(key)
+                if value is not None:
+                    console.print(f"[cyan]{key}[/cyan] = {value}")
+                else:
+                    console.print(f"[yellow]Variable {key} not found[/yellow]")
+                return 0, "", ""
+            
+            elif subcommand == "set":
+                if len(parts) < 4:
+                    return 1, "", "Usage: env set <key> <value>"
+                
+                key = parts[2]
+                value = parts[3]
+                env_manager.set_var(key, value)
+                return 0, "", ""
+            
+            elif subcommand == "llm":
+                if len(parts) < 3:
+                    providers = ["claude", "openai", "gemini", "ollama"]
+                    console.print("Available providers: " + ", ".join(providers))
+                    return 0, "", ""
+                
+                provider = parts[2].lower()
+                config = env_manager.get_llm_config(provider)
+                
+                if not config:
+                    return 1, "", f"Unknown provider: {provider}"
+                
+                from rich.table import Table
+                table = Table(title=f"{provider.title()} Configuration", show_header=True)
+                table.add_column("Setting", style="cyan")
+                table.add_column("Value", style="white")
+                
+                for key, value in config.items():
+                    if value is None:
+                        display_value = "[red]Not set[/red]"
+                    elif 'key' in key.lower() or 'token' in key.lower():
+                        # Mask sensitive values
+                        if len(value) > 8:
+                            display_value = value[:4] + "..." + value[-4:]
+                        else:
+                            display_value = "***"
+                    else:
+                        display_value = value
+                    
+                    table.add_row(key, display_value)
+                
+                console.print(table)
+                return 0, "", ""
+            
+            else:
+                return 1, "", f"Unknown subcommand: {subcommand}. Use: reload, show, get, set, llm"
+        
+        except Exception as e:
+            return 1, "", f"Env error: {str(e)}"

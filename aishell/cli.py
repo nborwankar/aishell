@@ -16,7 +16,7 @@ from aishell.llm import (
     GeminiLLMProvider,
 )
 from aishell.mcp import MCPClient, MCPMessage, NLToMCPTranslator
-from aishell.utils import get_transcript_manager
+from aishell.utils import get_transcript_manager, load_env_on_startup
 
 console = Console()
 
@@ -27,6 +27,9 @@ console = Console()
 def main(ctx):
     """AIShell - An intelligent command line tool."""
     ctx.ensure_object(dict)
+    
+    # Load environment variables on startup
+    load_env_on_startup(verbose=False)
 
 
 @main.command()

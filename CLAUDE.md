@@ -15,6 +15,10 @@ source venv/bin/activate
 pip install -e .
 python -m playwright install  # For web search
 
+# Configuration
+cp .env.example .env  # Copy and configure environment variables
+# Edit .env with your API keys and settings
+
 # Testing
 pytest
 
@@ -41,25 +45,38 @@ aishell/
 │   ├── intelligent_shell.py  # Main shell with history, aliases, git awareness
 │   └── nl_converter.py  # Natural language to command conversion
 └── utils/               # Utility functions
-    └── __init__.py
+    ├── __init__.py
+    ├── transcript.py    # LLM interaction logging
+    └── env_manager.py   # Environment variable management
 
 config/                  # Configuration templates
 scripts/                 # Helper scripts
 ```
 
-## Key Features Implemented (Phase 1)
+## Key Features Implemented
 
+### Phase 1
 1. **Web Search**: Playwright-based search with Google/DuckDuckGo backends
 2. **Intelligent Shell**: Enhanced shell with NL conversion, aliases, history
 3. **File Search**: macOS Spotlight and BSD find integration
 4. **Natural Language**: Convert NL to commands using Claude API or Ollama
 
+### Phase 2
+1. **LLM Integration**: Support for Claude, OpenAI, Gemini, and Ollama providers
+2. **Multi-LLM Queries**: Collate responses from multiple providers simultaneously
+3. **MCP Support**: Interact with Model Context Protocol servers
+4. **Shell Commands**: Built-in LLM/MCP commands within interactive shell
+5. **Environment Management**: .env file loading and management with `env` command
+6. **Transcript Logging**: Persistent logging of all LLM interactions
+
 ## Important Implementation Notes
 
 - **macOS Focused**: File search optimized for macOS using `mdfind`, `find`, `grep`, `mdls`
-- **Async Architecture**: Web search uses async/await with Playwright
-- **Rich UI**: All output uses Rich library for formatting
-- **Pluggable NL**: Support for Claude, Ollama, and mock NL providers
+- **Async Architecture**: Web search and LLM calls use async/await with proper concurrency
+- **Rich UI**: All output uses Rich library for formatting and tables
+- **Pluggable Architecture**: Support for multiple LLM providers and NL converters
+- **Environment Configuration**: .env file loading on startup with reload capability
+- **Transcript Logging**: All LLM interactions logged to LLMTranscript.md with errors in LLMErrors.md
 - **Native Tools**: Leverages system tools rather than pure Python for performance
 
 ## Development Workflow
