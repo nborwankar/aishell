@@ -16,6 +16,7 @@ from aishell.llm import (
     GeminiLLMProvider,
 )
 from aishell.mcp import MCPClient, MCPMessage, NLToMCPTranslator
+from aishell.utils import get_transcript_manager
 
 console = Console()
 
@@ -181,6 +182,8 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
     query_str = ' '.join(query)
     
     async def run_query():
+        transcript = get_transcript_manager()
+        
         # Create the appropriate provider
         if provider == 'claude':
             llm = ClaudeLLMProvider(api_key=api_key)
@@ -200,6 +203,7 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
         
         if stream:
             # Streaming response
+            streamed_content = ""
             with console.status("[yellow]Thinking...[/yellow]", spinner="dots"):
                 first_chunk = True
                 async for chunk in llm.stream_query(
@@ -212,7 +216,16 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
                         console.print()  # Clear the status
                         first_chunk = False
                     console.print(chunk, end="")
+                    streamed_content += chunk
             console.print()  # Final newline
+            
+            # Log streamed response to transcript
+            transcript.log_interaction(
+                query=query_str,
+                response=streamed_content,
+                provider=provider,
+                model=model or llm.default_model
+            )
         else:
             # Regular response
             with console.status("[yellow]Thinking...[/yellow]", spinner="dots"):
@@ -225,6 +238,13 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
             
             if response.is_error:
                 console.print(f"[red]Error:[/red] {response.error}")
+                # Log error to transcript
+                transcript.log_interaction(
+                    query=query_str,
+                    response=f"ERROR: {response.error}",
+                    provider=provider,
+                    model=model or "unknown"
+                )
             else:
                 # Display response in a nice panel
                 panel = Panel(
@@ -242,22 +262,31 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
                     console.print("[dim]Usage:[/dim]")
                     for key, value in response.usage.items():
                         console.print(f"  [dim]{key}:[/dim] {value}")
+                
+                # Log successful response to transcript
+                transcript.log_interaction(
+                    query=query_str,
+                    response=response.content,
+                    provider=provider,
+                    model=response.model,
+                    usage=response.usage
+                )
     
     asyncio.run(run_query())
 
 
-@main.command(name='multi-query')
+@main.command(name='collate')
 @click.argument('query', nargs=-1, required=True)
 @click.option('--providers', '-p', multiple=True, type=click.Choice(['claude', 'openai', 'ollama', 'gemini']), help='LLM providers to use')
 @click.option('--temperature', '-t', default=0.7, help='Temperature for sampling')
 @click.option('--max-tokens', default=None, type=int, help='Maximum tokens to generate')
-@click.option('--compare', '-c', is_flag=True, help='Show results in comparison table')
-def multi_query(query, providers, temperature, max_tokens, compare):
+@click.option('--table', '-t', is_flag=True, help='Show results in collation table')
+def collate(query, providers, temperature, max_tokens, table):
     """Send the same query to multiple LLM providers simultaneously.
     
     Examples:
-        aishell multi-query "What is 2+2?" -p claude -p openai -p ollama
-        aishell multi-query "Explain DNS" --providers gemini --providers claude --compare
+        aishell collate "What is 2+2?" -p claude -p openai -p ollama
+        aishell collate "Explain DNS" --providers gemini --providers claude --table
     """
     query_str = ' '.join(query)
     
@@ -266,6 +295,8 @@ def multi_query(query, providers, temperature, max_tokens, compare):
         providers = ['claude', 'openai', 'ollama', 'gemini']
     
     async def run_multi_query():
+        transcript = get_transcript_manager()
+        
         # Create provider instances
         provider_map = {
             'claude': ClaudeLLMProvider(),
@@ -309,18 +340,21 @@ def multi_query(query, providers, temperature, max_tokens, compare):
                     )
                     results.append((name, error_response))
         
+        # Log to transcript
+        transcript.log_multi_interaction(query_str, results)
+        
         # Display results
-        if compare:
-            # Comparison table
-            table = Table(title="LLM Responses Comparison", show_lines=True)
-            table.add_column("Provider", style="cyan", width=12)
-            table.add_column("Model", style="blue", width=20)
-            table.add_column("Response", style="white", no_wrap=False)
-            table.add_column("Tokens", style="dim", width=10)
+        if table:
+            # Collation table
+            collation_table = Table(title="LLM Responses Collation", show_lines=True)
+            collation_table.add_column("Provider", style="cyan", width=12)
+            collation_table.add_column("Model", style="blue", width=20)
+            collation_table.add_column("Response", style="white", no_wrap=False)
+            collation_table.add_column("Tokens", style="dim", width=10)
             
             for name, response in results:
                 if response.is_error:
-                    table.add_row(
+                    collation_table.add_row(
                         name.title(),
                         response.model,
                         f"[red]Error: {response.error}[/red]",
@@ -331,14 +365,14 @@ def multi_query(query, providers, temperature, max_tokens, compare):
                     if response.usage and 'total_tokens' in response.usage:
                         tokens = str(response.usage['total_tokens'])
                     
-                    table.add_row(
+                    collation_table.add_row(
                         name.title(),
                         response.model,
                         response.content,
                         tokens
                     )
             
-            console.print(table)
+            console.print(collation_table)
         else:
             # Sequential display
             for name, response in results:

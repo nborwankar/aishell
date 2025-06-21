@@ -24,6 +24,7 @@ from aishell.llm import (
     GeminiLLMProvider,
 )
 from aishell.mcp import MCPClient, MCPMessage, NLToMCPTranslator
+from aishell.utils import get_transcript_manager
 
 console = Console()
 
@@ -200,14 +201,20 @@ class IntelligentShell:
             return self._handle_export(command)
         elif command == 'alias':
             return self._show_aliases()
-        elif command.startswith('llm '):
+        elif command.startswith('llm') and (command == 'llm' or command.startswith('llm ')):
             return self._handle_llm(command)
-        elif command.startswith('mcp '):
+        elif command.startswith('mcp') and (command == 'mcp' or command.startswith('mcp ')):
             return self._handle_mcp(command)
-        elif command.startswith('compare '):
-            return self._handle_compare(command)
-        elif command.startswith('generate '):
+        elif command.startswith('collate') and (command == 'collate' or command.startswith('collate ')):
+            return self._handle_collate(command)
+        elif command.startswith('generate') and (command == 'generate' or command.startswith('generate ')):
             return self._handle_generate(command)
+        
+        # Default to LLM command if no other built-in matches
+        # Check if it looks like a natural language query
+        if not any(command.startswith(cmd) for cmd in ['cd', 'pwd', 'export', 'alias', 'history', 'clear', 'cls', 'help', 'exit', 'quit']):
+            # Try as LLM command with the entire input as query
+            return self._handle_llm(f'llm "{command}"')
         
         # Execute external command
         try:
@@ -431,7 +438,7 @@ class IntelligentShell:
             ("history", "Show command history"),
             ("clear/cls", "Clear the screen"),
             ("llm \"query\"", "Query an LLM provider"),
-            ("compare \"query\"", "Compare responses across LLM providers"),
+            ("collate \"query\"", "Collate responses across LLM providers"),
             ("mcp <url> <cmd>", "Interact with MCP servers"),
             ("generate <lang> <desc>", "Generate code in specified language"),
         ]
@@ -507,17 +514,36 @@ class IntelligentShell:
             
             # Run the query
             async def run_query():
+                transcript = get_transcript_manager()
+                
                 if stream:
                     console.print(f"[blue]Streaming from {provider_name}...[/blue]")
+                    streamed_content = ""
                     async for chunk in provider.stream_query(query, model=model):
                         console.print(chunk, end="")
+                        streamed_content += chunk
                     console.print()  # Final newline
+                    
+                    # Log streamed response to transcript
+                    transcript.log_interaction(
+                        query=query,
+                        response=streamed_content,
+                        provider=provider_name,
+                        model=model or provider.default_model
+                    )
                 else:
                     with console.status(f"[yellow]Querying {provider_name}...[/yellow]"):
                         response = await provider.query(query, model=model)
                     
                     if response.is_error:
                         console.print(f"[red]Error:[/red] {response.error}")
+                        # Log error to transcript
+                        transcript.log_interaction(
+                            query=query,
+                            response=f"ERROR: {response.error}",
+                            provider=provider_name,
+                            model=model or "unknown"
+                        )
                     else:
                         panel = Panel(
                             response.content,
@@ -530,6 +556,15 @@ class IntelligentShell:
                         
                         if response.usage:
                             console.print(f"[dim]Tokens: {response.usage.get('total_tokens', 'N/A')}[/dim]")
+                        
+                        # Log successful response to transcript
+                        transcript.log_interaction(
+                            query=query,
+                            response=response.content,
+                            provider=provider_name,
+                            model=response.model,
+                            usage=response.usage
+                        )
             
             asyncio.run(run_query())
             return 0, "", ""
@@ -590,12 +625,12 @@ class IntelligentShell:
         except Exception as e:
             return 1, "", f"MCP error: {str(e)}"
     
-    def _handle_compare(self, command: str) -> Tuple[int, str, str]:
-        """Handle multi-LLM comparisons."""
+    def _handle_collate(self, command: str) -> Tuple[int, str, str]:
+        """Handle multi-LLM collations."""
         try:
             parts = shlex.split(command)
             if len(parts) < 2:
-                return 1, "", "Usage: compare \"query\" [--providers p1 p2 ...]"
+                return 1, "", "Usage: collate \"query\" [--providers p1 p2 ...]"
             
             query = parts[1]
             providers = ['claude', 'openai']  # default providers
@@ -626,16 +661,21 @@ class IntelligentShell:
                         task = provider_map[provider_name].query(query)
                         tasks.append((provider_name, task))
                 
-                # Create comparison table
-                table = Table(title="LLM Responses Comparison", show_lines=True)
+                # Create collation table
+                table = Table(title="LLM Responses Collation", show_lines=True)
                 table.add_column("Provider", style="cyan", width=12)
                 table.add_column("Response", style="white", no_wrap=False)
                 table.add_column("Tokens", style="dim", width=10)
+                
+                # Collect responses for transcript logging
+                responses_for_transcript = []
                 
                 with console.status("[yellow]Waiting for responses...[/yellow]"):
                     for provider_name, task in tasks:
                         try:
                             response = await task
+                            responses_for_transcript.append((provider_name, response))
+                            
                             if response.is_error:
                                 table.add_row(
                                     provider_name.title(),
@@ -650,6 +690,16 @@ class IntelligentShell:
                                     tokens
                                 )
                         except Exception as e:
+                            # Create error response for transcript
+                            from aishell.llm import LLMResponse
+                            error_response = LLMResponse(
+                                content="",
+                                model="unknown",
+                                provider=provider_name,
+                                error=str(e)
+                            )
+                            responses_for_transcript.append((provider_name, error_response))
+                            
                             table.add_row(
                                 provider_name.title(),
                                 f"[red]Error: {str(e)}[/red]",
@@ -657,12 +707,16 @@ class IntelligentShell:
                             )
                 
                 console.print(table)
+                
+                # Log to transcript
+                transcript = get_transcript_manager()
+                transcript.log_multi_interaction(query, responses_for_transcript)
             
             asyncio.run(run_comparison())
             return 0, "", ""
             
         except Exception as e:
-            return 1, "", f"Compare error: {str(e)}"
+            return 1, "", f"Collate error: {str(e)}"
     
     def _handle_generate(self, command: str) -> Tuple[int, str, str]:
         """Handle code generation commands."""

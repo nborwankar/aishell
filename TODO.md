@@ -8,15 +8,15 @@
 
 --
 
-## Phase 2 
+## Phase 2 ✅ COMPLETED
 - [x] Send queries to one LLM (local or remote)
 - [x] Send queries to multiple LLMs
 - [x] Interact via JSON messages with local and remote MCP servers
 - [x] Generate MCP messages from natural language queries
-- [ ] Enhance interactive shell with LLM built-in commands
-- [ ] Add MCP built-in commands to shell
-- [ ] Implement magic commands for multi-queries
-- [ ] Add code generation commands within shell
+- [x] Enhance interactive shell with LLM built-in commands
+- [x] Add MCP built-in commands to shell
+- [x] Implement magic commands for multi-queries
+- [x] Add code generation commands within shell
 
 --
 
