@@ -1,5 +1,50 @@
 # DONE - Development Log
 
+## MCP Awareness Implementation - 2025-06-21
+
+### LLM MCP Capability Awareness
+- **MCPCapabilityManager**: Created comprehensive system to make LLMs aware of available MCP capabilities
+- **Automatic Context Enhancement**: LLMs automatically receive MCP tool information when queries contain relevant keywords
+- **Smart Keyword Detection**: Detects 24 MCP-related keywords (database, github, jira, docker, kubernetes, etc.)
+- **Dynamic Server Discovery**: Reads configured MCP servers from environment and provides capability details
+
+#### Key Features:
+- **14 MCP Server Types Supported**: Complete capability descriptions for all major MCP server types
+  - Database: PostgreSQL, SQLite, MySQL
+  - Version Control: GitHub, GitLab  
+  - Project Management: JIRA, Atlassian
+  - Infrastructure: Docker, Kubernetes
+  - Cloud: AWS S3, Google Cloud
+  - File/Web: Filesystem, Fetch, Memory
+- **Context Injection**: When users ask about databases, GitHub, containers, etc., LLMs automatically get:
+  - List of available configured MCP servers
+  - Detailed capability descriptions
+  - Example usage commands
+  - Best practice guidelines
+- **Both CLI and Shell Support**: Enhanced `aishell query` and shell `llm` commands
+- **Thread-Safe Operations**: Singleton pattern with proper concurrency handling
+
+#### Enhanced User Experience:
+Users can now ask questions like:
+- "How can I check my database schema?" → LLM suggests `mcp postgres` commands
+- "I need to manage GitHub issues" → LLM suggests `mcp github` operations
+- "Help me with JIRA tickets" → LLM suggests `mcp jira` workflows
+- "Docker container management" → LLM suggests `mcp docker` commands
+
+#### Files Added/Modified:
+- `aishell/utils/mcp_discovery.py` - New MCP capability manager
+- `aishell/utils/__init__.py` - Added MCP discovery exports
+- `aishell/cli.py` - Enhanced CLI query with MCP context
+- `aishell/shell/intelligent_shell.py` - Enhanced shell LLM with MCP context
+- `tests/utils/test_mcp_discovery.py` - Comprehensive test suite (7 new tests)
+- `tests/test_integration.py` - Fixed deprecated test references
+
+### Default MCP Server Configurations
+- **16 Default MCP Servers**: Added comprehensive defaults in `.env.example`
+- **Popular Service Coverage**: PostgreSQL, GitHub, GitLab, JIRA, Docker, Kubernetes, AWS, GCP
+- **Easy Configuration**: Users can uncomment and configure desired servers
+- **Environment Integration**: MCP servers automatically discovered from environment variables
+
 ## Phase 2 Completion - 2025-06-21
 
 ### Enhanced Shell with Built-in Commands

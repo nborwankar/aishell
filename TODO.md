@@ -21,6 +21,8 @@
 - [x] LLM interaction transcript logging (LLMTranscript.md + LLMErrors.md)
 - [x] Configurable default LLM provider system
 - [x] Enhanced shell with env management commands
+- [x] **MCP Awareness System**: LLMs automatically know about available MCP capabilities
+- [x] **Default MCP Server Configurations**: 16 popular MCP servers pre-configured
 
 --
 
