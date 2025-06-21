@@ -5,10 +5,12 @@ rich>=13.0.0
 playwright>=1.40.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
+aiohttp>=3.9.0  # For async HTTP requests (Ollama)
 
-# Optional dependencies for NL conversion
-# anthropic>=0.18.0  # Uncomment for Claude support
-# ollama>=0.1.0      # Uncomment for Ollama support (if package exists)
+# Optional dependencies for LLM providers
+# anthropic>=0.18.0         # Uncomment for Claude support
+# openai>=1.0.0            # Uncomment for OpenAI support
+# google-generativeai>=0.3.0  # Uncomment for Gemini support
 
 # Development dependencies
 pytest>=7.4.0

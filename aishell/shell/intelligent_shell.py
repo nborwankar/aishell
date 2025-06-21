@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import shlex
+import asyncio
 from typing import List, Tuple, Optional, Dict
 from pathlib import Path
 import json
@@ -16,6 +17,13 @@ from rich.table import Table
 from rich import print as rprint
 
 from aishell.shell.nl_converter import get_nl_converter, NLConverter
+from aishell.llm import (
+    ClaudeLLMProvider,
+    OpenAILLMProvider,
+    OllamaLLMProvider,
+    GeminiLLMProvider,
+)
+from aishell.mcp import MCPClient, MCPMessage, NLToMCPTranslator
 
 console = Console()
 
@@ -192,6 +200,14 @@ class IntelligentShell:
             return self._handle_export(command)
         elif command == 'alias':
             return self._show_aliases()
+        elif command.startswith('llm '):
+            return self._handle_llm(command)
+        elif command.startswith('mcp '):
+            return self._handle_mcp(command)
+        elif command.startswith('compare '):
+            return self._handle_compare(command)
+        elif command.startswith('generate '):
+            return self._handle_generate(command)
         
         # Execute external command
         try:
@@ -414,6 +430,10 @@ class IntelligentShell:
             ("alias", "Show all aliases"),
             ("history", "Show command history"),
             ("clear/cls", "Clear the screen"),
+            ("llm \"query\"", "Query an LLM provider"),
+            ("compare \"query\"", "Compare responses across LLM providers"),
+            ("mcp <url> <cmd>", "Interact with MCP servers"),
+            ("generate <lang> <desc>", "Generate code in specified language"),
         ]
         
         # Add NL command if available
@@ -444,3 +464,250 @@ class IntelligentShell:
             console.print(f"  [cyan]{alias}[/cyan] → {command}")
         if len(self.aliases) > 10:
             console.print(f"  [dim]... and {len(self.aliases) - 10} more[/dim]")
+    
+    def _handle_llm(self, command: str) -> Tuple[int, str, str]:
+        """Handle LLM queries."""
+        try:
+            parts = shlex.split(command)
+            if len(parts) < 2:
+                return 1, "", "Usage: llm \"query\" [--provider provider] [--model model] [--stream]"
+            
+            query = parts[1]
+            provider_name = "claude"  # default
+            model = None
+            stream = False
+            
+            # Parse options
+            i = 2
+            while i < len(parts):
+                if parts[i] == "--provider" and i + 1 < len(parts):
+                    provider_name = parts[i + 1]
+                    i += 2
+                elif parts[i] == "--model" and i + 1 < len(parts):
+                    model = parts[i + 1]
+                    i += 2
+                elif parts[i] == "--stream":
+                    stream = True
+                    i += 1
+                else:
+                    i += 1
+            
+            # Create provider
+            provider_map = {
+                'claude': ClaudeLLMProvider,
+                'openai': OpenAILLMProvider,
+                'ollama': OllamaLLMProvider,
+                'gemini': GeminiLLMProvider,
+            }
+            
+            if provider_name not in provider_map:
+                return 1, "", f"Unknown provider: {provider_name}. Use: claude, openai, ollama, gemini"
+            
+            provider = provider_map[provider_name]()
+            
+            # Run the query
+            async def run_query():
+                if stream:
+                    console.print(f"[blue]Streaming from {provider_name}...[/blue]")
+                    async for chunk in provider.stream_query(query, model=model):
+                        console.print(chunk, end="")
+                    console.print()  # Final newline
+                else:
+                    with console.status(f"[yellow]Querying {provider_name}...[/yellow]"):
+                        response = await provider.query(query, model=model)
+                    
+                    if response.is_error:
+                        console.print(f"[red]Error:[/red] {response.error}")
+                    else:
+                        panel = Panel(
+                            response.content,
+                            title=f"[green]{provider_name.title()} Response[/green]",
+                            subtitle=f"Model: {response.model}",
+                            border_style="green",
+                            padding=(1, 2)
+                        )
+                        console.print(panel)
+                        
+                        if response.usage:
+                            console.print(f"[dim]Tokens: {response.usage.get('total_tokens', 'N/A')}[/dim]")
+            
+            asyncio.run(run_query())
+            return 0, "", ""
+            
+        except Exception as e:
+            return 1, "", f"LLM error: {str(e)}"
+    
+    def _handle_mcp(self, command: str) -> Tuple[int, str, str]:
+        """Handle MCP commands."""
+        try:
+            parts = shlex.split(command)
+            if len(parts) < 2:
+                return 1, "", "Usage: mcp <server_url> <command> [args]"
+            
+            server_url = parts[1]
+            
+            if len(parts) < 3:
+                return 1, "", "Usage: mcp <server_url> <command> [args]"
+            
+            mcp_command = parts[2]
+            
+            async def run_mcp():
+                async with MCPClient(server_url) as client:
+                    # Initialize connection
+                    console.print(f"[blue]Connecting to {server_url}...[/blue]")
+                    init_response = await client.initialize(
+                        client_info={"name": "aishell-shell", "version": "1.0"}
+                    )
+                    
+                    if init_response.is_error:
+                        console.print(f"[red]Connection failed:[/red] {init_response.error}")
+                        return
+                    
+                    # Handle specific commands
+                    if mcp_command == "ping":
+                        response = await client.ping()
+                        client.display_response(response, "Ping Response")
+                    elif mcp_command == "tools":
+                        response = await client.list_tools()
+                        client.display_response(response, "Available Tools")
+                    elif mcp_command == "resources":
+                        response = await client.list_resources()
+                        client.display_response(response, "Available Resources")
+                    elif mcp_command == "prompts":
+                        response = await client.list_prompts()
+                        client.display_response(response, "Available Prompts")
+                    else:
+                        # Try natural language conversion
+                        translator = NLToMCPTranslator()
+                        full_query = " ".join(parts[2:])
+                        message = await translator.translate(full_query)
+                        response = await client.send_message(message)
+                        client.display_response(response, f"Response for: {message.method}")
+            
+            asyncio.run(run_mcp())
+            return 0, "", ""
+            
+        except Exception as e:
+            return 1, "", f"MCP error: {str(e)}"
+    
+    def _handle_compare(self, command: str) -> Tuple[int, str, str]:
+        """Handle multi-LLM comparisons."""
+        try:
+            parts = shlex.split(command)
+            if len(parts) < 2:
+                return 1, "", "Usage: compare \"query\" [--providers p1 p2 ...]"
+            
+            query = parts[1]
+            providers = ['claude', 'openai']  # default providers
+            
+            # Parse providers
+            if "--providers" in parts:
+                idx = parts.index("--providers")
+                providers = []
+                for i in range(idx + 1, len(parts)):
+                    if not parts[i].startswith("--"):
+                        providers.append(parts[i])
+                    else:
+                        break
+            
+            async def run_comparison():
+                provider_map = {
+                    'claude': ClaudeLLMProvider(),
+                    'openai': OpenAILLMProvider(),
+                    'ollama': OllamaLLMProvider(),
+                    'gemini': GeminiLLMProvider(),
+                }
+                
+                console.print(f"[blue]Comparing across {len(providers)} providers...[/blue]")
+                
+                tasks = []
+                for provider_name in providers:
+                    if provider_name in provider_map:
+                        task = provider_map[provider_name].query(query)
+                        tasks.append((provider_name, task))
+                
+                # Create comparison table
+                table = Table(title="LLM Responses Comparison", show_lines=True)
+                table.add_column("Provider", style="cyan", width=12)
+                table.add_column("Response", style="white", no_wrap=False)
+                table.add_column("Tokens", style="dim", width=10)
+                
+                with console.status("[yellow]Waiting for responses...[/yellow]"):
+                    for provider_name, task in tasks:
+                        try:
+                            response = await task
+                            if response.is_error:
+                                table.add_row(
+                                    provider_name.title(),
+                                    f"[red]Error: {response.error}[/red]",
+                                    "-"
+                                )
+                            else:
+                                tokens = str(response.usage.get('total_tokens', '-')) if response.usage else '-'
+                                table.add_row(
+                                    provider_name.title(),
+                                    response.content,
+                                    tokens
+                                )
+                        except Exception as e:
+                            table.add_row(
+                                provider_name.title(),
+                                f"[red]Error: {str(e)}[/red]",
+                                "-"
+                            )
+                
+                console.print(table)
+            
+            asyncio.run(run_comparison())
+            return 0, "", ""
+            
+        except Exception as e:
+            return 1, "", f"Compare error: {str(e)}"
+    
+    def _handle_generate(self, command: str) -> Tuple[int, str, str]:
+        """Handle code generation commands."""
+        try:
+            parts = shlex.split(command)
+            if len(parts) < 3:
+                return 1, "", "Usage: generate <language> <description>"
+            
+            language = parts[1]
+            description = " ".join(parts[2:])
+            
+            # Create generation prompt
+            prompt = f"""Generate {language} code for: {description}
+
+Requirements:
+- Write clean, well-commented code
+- Include example usage if appropriate
+- Follow {language} best practices
+- Provide only the code, no explanations
+
+Language: {language}
+Task: {description}"""
+            
+            async def run_generation():
+                # Use Claude for code generation by default
+                provider = ClaudeLLMProvider()
+                
+                with console.status(f"[yellow]Generating {language} code...[/yellow]"):
+                    response = await provider.query(prompt, temperature=0.3)
+                
+                if response.is_error:
+                    console.print(f"[red]Generation failed:[/red] {response.error}")
+                else:
+                    # Display code with syntax highlighting
+                    syntax = Syntax(response.content, language.lower(), theme="monokai", line_numbers=True)
+                    panel = Panel(
+                        syntax,
+                        title=f"[green]Generated {language.title()} Code[/green]",
+                        border_style="green",
+                        padding=(1, 2)
+                    )
+                    console.print(panel)
+            
+            asyncio.run(run_generation())
+            return 0, "", ""
+            
+        except Exception as e:
+            return 1, "", f"Generate error: {str(e)}"
