@@ -120,3 +120,96 @@ Modified `aishell/cli.py` to:
 - Displays results in both table and detailed panel format
 - Supports limiting number of results
 - Handles errors gracefully with informative messages
+
+## Phase 1 - Step 3: Intelligent Shell (2025-06-20)
+
+### Implemented Intelligent Shell Module
+Created `aishell/shell/intelligent_shell.py` with comprehensive shell features:
+
+#### Core Components:
+1. **CommandHistory Class**
+   - Persistent command history (~/.aishell_history)
+   - Automatic saving and loading
+   - Keeps last 1000 commands
+   
+2. **CommandSuggester Class**
+   - Command completion suggestions
+   - Path completion for files/directories
+   - Common command patterns (git, docker, npm, etc.)
+   - Dangerous command detection with warnings
+   
+3. **IntelligentShell Class**
+   - Main shell implementation
+   - Alias support with customization
+   - Environment variable management
+   - Git branch awareness in prompt
+   - Built-in commands (cd, pwd, export, alias)
+
+#### Features Implemented:
+- **Smart Prompt**: Shows current directory and git branch
+- **Command Aliases**: Pre-defined and user-customizable aliases
+- **Tab Completion**: Using readline for better UX
+- **Safety Features**: Warnings for potentially dangerous commands
+- **Built-in Commands**:
+  - `cd` - Change directory with proper path resolution
+  - `pwd` - Print working directory
+  - `export` - Set environment variables
+  - `alias` - Show all aliases
+  - `help` - Display available commands
+- **Rich Formatting**: Colorized output and formatted tables
+- **Error Handling**: Graceful error messages and exit codes
+
+### Updated CLI Integration
+- Modified `aishell/cli.py` to use IntelligentShell
+- Added options:
+  - `--no-history`: Disable command history
+  - `--config`: Specify configuration file path
+- Enhanced help text with feature list
+
+### Configuration Support
+- Created `config/aishell_aliases.json.example` as template
+- Supports user-defined aliases in ~/.aishell_aliases
+- Common aliases pre-configured (git, docker, navigation)
+
+### Files Modified/Created:
+- `/Users/nitin/Projects/github/aishell/aishell/shell/__init__.py` (new)
+- `/Users/nitin/Projects/github/aishell/aishell/shell/intelligent_shell.py` (new)
+- `/Users/nitin/Projects/github/aishell/aishell/cli.py` (updated shell command)
+- `/Users/nitin/Projects/github/aishell/config/aishell_aliases.json.example` (new)
+
+### Implementation Highlights:
+- Uses subprocess for command execution with proper environment handling
+- Maintains shell state (current directory, environment variables)
+- Provides visual feedback for command execution status
+- Integrates with system readline for familiar shell experience
+- Supports both built-in and external commands seamlessly
+
+### Natural Language Integration Added
+- Created `aishell/shell/nl_converter.py` with pluggable architecture:
+  - `NLConverter` abstract base class for extensibility
+  - `ClaudeNLConverter` for Claude API integration
+  - `OllamaNLConverter` for local LLM support
+  - `MockNLConverter` for testing without API access
+  
+- Enhanced IntelligentShell with NL capabilities:
+  - Use `?` prefix to convert natural language to commands
+  - Shows converted command before execution
+  - Asks for confirmation before running
+  - Graceful fallback if NL conversion unavailable
+  
+- Updated CLI with NL provider options:
+  - `--nl-provider` to choose between claude, ollama, mock, or none
+  - `--ollama-model` to specify Ollama model
+  - `--anthropic-api-key` support (also reads from env)
+  
+- Updated documentation:
+  - Added NL setup instructions for Claude and Ollama
+  - Documented the `?` prefix convention
+  - Added examples of natural language queries
+
+### Files Modified/Created in this update:
+- `/Users/nitin/Projects/github/aishell/aishell/shell/nl_converter.py` (new)
+- `/Users/nitin/Projects/github/aishell/aishell/shell/intelligent_shell.py` (added NL support)
+- `/Users/nitin/Projects/github/aishell/aishell/cli.py` (added NL provider options)
+- `/Users/nitin/Projects/github/aishell/requirements.txt` (added optional dependencies)
+- `/Users/nitin/Projects/github/aishell/README.md` (added NL documentation)

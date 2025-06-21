@@ -4,6 +4,7 @@ from rich.console import Console
 
 from aishell import __version__
 from aishell.search.web_search import perform_web_search
+from aishell.shell.intelligent_shell import IntelligentShell
 
 console = Console()
 
@@ -43,10 +44,45 @@ def find(pattern, path, content):
 
 
 @main.command()
-def shell():
-    """Start an intelligent shell session."""
-    console.print("[green]Starting AIShell interactive mode...[/green]")
-    console.print("[yellow]Shell functionality coming soon...[/yellow]")
+@click.option('--no-history', is_flag=True, help='Disable command history')
+@click.option('--config', type=click.Path(), help='Path to configuration file')
+@click.option('--nl-provider', type=click.Choice(['claude', 'ollama', 'mock', 'none']), default='claude', help='Natural language provider')
+@click.option('--ollama-model', default='llama2', help='Ollama model to use (if using ollama provider)')
+@click.option('--anthropic-api-key', envvar='ANTHROPIC_API_KEY', help='Anthropic API key for Claude')
+def shell(no_history, config, nl_provider, ollama_model, anthropic_api_key):
+    """Start an intelligent shell session with enhanced features.
+    
+    Features:
+    - Command history and suggestions
+    - Aliases and tab completion
+    - Git branch awareness
+    - Safety warnings for dangerous commands
+    - Built-in commands (cd, export, alias)
+    - Natural language to command conversion (use ? prefix)
+    
+    Examples:
+        aishell shell                    # Use Claude for NL conversion
+        aishell shell --nl-provider ollama  # Use local Ollama
+        aishell shell --nl-provider none    # Disable NL conversion
+    """
+    # Prepare NL converter kwargs
+    nl_kwargs = {}
+    if nl_provider == 'ollama':
+        nl_kwargs['model'] = ollama_model
+    elif nl_provider == 'claude' and anthropic_api_key:
+        nl_kwargs['api_key'] = anthropic_api_key
+    
+    # Create shell instance
+    if nl_provider == 'none':
+        shell = IntelligentShell(nl_provider='mock', nl_converter_kwargs=None)
+        shell.nl_converter = None  # Disable NL conversion
+    else:
+        shell = IntelligentShell(nl_provider=nl_provider, nl_converter_kwargs=nl_kwargs)
+    
+    if no_history:
+        shell.history = None
+    
+    shell.run()
 
 
 if __name__ == '__main__':

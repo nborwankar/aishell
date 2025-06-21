@@ -2,7 +2,7 @@
 
 ## Phase 1
 - [x] Set up Python project structure
-- [ ] Web search from the command line
+- [x] Web search from the command line (with Playwright and headless Chrome)
 - [ ] Intelligent shell functionality
 - [ ] File system search capabilities
 

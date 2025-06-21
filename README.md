@@ -40,6 +40,31 @@ pip install -e .
 python scripts/install_playwright.py
 # OR directly:
 python -m playwright install
+
+# Optional: Install dependencies for natural language support
+pip install anthropic  # For Claude support
+# For Ollama, install from https://ollama.ai
+```
+
+### Natural Language Setup
+
+#### Claude (Default)
+```bash
+# Set your Anthropic API key
+export ANTHROPIC_API_KEY="your-api-key-here"
+
+# Install the SDK
+pip install anthropic
+```
+
+#### Ollama (Local LLM)
+```bash
+# Install Ollama from https://ollama.ai
+# Pull a model
+ollama pull llama2
+
+# Start Ollama server (usually runs automatically)
+# The shell will connect to http://localhost:11434
 ```
 
 ## Usage
@@ -62,6 +87,18 @@ aishell find "*.py" --content "import requests"
 
 # Interactive shell
 aishell shell
+
+# Interactive shell with natural language support
+aishell shell  # Uses Claude by default (requires ANTHROPIC_API_KEY)
+aishell shell --nl-provider ollama  # Use local Ollama
+aishell shell --nl-provider mock    # Use mock converter for testing
+aishell shell --nl-provider none    # Disable NL conversion
+
+# Natural language examples in shell (prefix with ?)
+# ?list all python files
+# ?show disk usage
+# ?find large files over 100MB
+# ?create a backup of the config directory
 ```
 
 ## Development
