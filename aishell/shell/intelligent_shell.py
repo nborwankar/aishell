@@ -540,9 +540,10 @@ class IntelligentShell:
                         # Log error to transcript
                         transcript.log_interaction(
                             query=query,
-                            response=f"ERROR: {response.error}",
+                            response="",
                             provider=provider_name,
-                            model=model or "unknown"
+                            model=model or "unknown",
+                            error=response.error
                         )
                     else:
                         panel = Panel(

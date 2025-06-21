@@ -241,9 +241,10 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
                 # Log error to transcript
                 transcript.log_interaction(
                     query=query_str,
-                    response=f"ERROR: {response.error}",
+                    response="",
                     provider=provider,
-                    model=model or "unknown"
+                    model=model or "unknown",
+                    error=response.error
                 )
             else:
                 # Display response in a nice panel
