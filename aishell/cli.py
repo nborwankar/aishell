@@ -184,6 +184,35 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
     """
     query_str = ' '.join(query)
     
+    def _enhance_query_with_mcp_context(query_text: str) -> str:
+        """Enhance LLM query with MCP capability context when relevant."""
+        # Check if query might benefit from MCP context
+        mcp_keywords = [
+            'database', 'sql', 'query', 'table', 'postgres', 'mysql', 'sqlite',
+            'github', 'gitlab', 'repository', 'repo', 'git', 'commit', 'issue',
+            'jira', 'atlassian', 'ticket', 'project', 'task', 'workflow',
+            'docker', 'container', 'kubernetes', 'k8s', 'pod', 'deployment',
+            'aws', 's3', 'cloud', 'storage', 'bucket', 'gcp', 'google cloud',
+            'file', 'directory', 'folder', 'filesystem', 'web', 'fetch', 'url',
+            'memory', 'remember', 'store', 'recall', 'knowledge'
+        ]
+        
+        query_lower = query_text.lower()
+        if any(keyword in query_lower for keyword in mcp_keywords):
+            from aishell.utils import get_mcp_capability_manager
+            mcp_manager = get_mcp_capability_manager()
+            mcp_context = mcp_manager.generate_mcp_context_prompt()
+            
+            if mcp_context != "No MCP servers are currently configured.":
+                enhanced_query = f"""{query_text}
+
+{mcp_context}
+
+Please consider whether any of the available MCP tools could help with this request and suggest appropriate commands if relevant."""
+                return enhanced_query
+        
+        return query_text
+    
     async def run_query():
         transcript = get_transcript_manager()
         
@@ -198,6 +227,9 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
         # Get configuration from environment manager
         env_manager = get_env_manager()
         config = env_manager.get_llm_config(provider_name)
+        
+        # Enhance query with MCP context if relevant
+        enhanced_query = _enhance_query_with_mcp_context(query_str)
         
         # Create the appropriate provider with env config
         if provider_name == 'claude':
@@ -225,7 +257,7 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
             with console.status("[yellow]Thinking...[/yellow]", spinner="dots"):
                 first_chunk = True
                 async for chunk in llm.stream_query(
-                    query_str,
+                    enhanced_query,
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens
@@ -248,7 +280,7 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
             # Regular response
             with console.status("[yellow]Thinking...[/yellow]", spinner="dots"):
                 response = await llm.query(
-                    query_str,
+                    enhanced_query,
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens

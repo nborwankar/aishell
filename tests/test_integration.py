@@ -24,15 +24,14 @@ class TestLLMIntegration:
         assert '--provider' in result.output
         assert '--stream' in result.output
     
-    def test_multi_query_command_help(self):
-        """Test multi-query command help."""
+    def test_collate_command_help(self):
+        """Test collate command help."""
         runner = CliRunner()
-        result = runner.invoke(main, ['multi-query', '--help'])
+        result = runner.invoke(main, ['collate', '--help'])
         
         assert result.exit_code == 0
         assert 'Send the same query to multiple LLM providers' in result.output
         assert '--providers' in result.output
-        assert '--compare' in result.output
     
     @patch('aishell.cli.ClaudeLLMProvider')
     def test_query_command_execution(self, mock_claude_provider):
@@ -188,7 +187,7 @@ class TestCLIBasics:
         
         assert result.exit_code == 0
         assert 'query' in result.output
-        assert 'multi-query' in result.output
+        assert 'collate' in result.output
         assert 'mcp' in result.output
         assert 'mcp-convert' in result.output
     

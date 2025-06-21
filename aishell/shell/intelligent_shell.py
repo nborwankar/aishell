@@ -24,7 +24,7 @@ from aishell.llm import (
     GeminiLLMProvider,
 )
 from aishell.mcp import MCPClient, MCPMessage, NLToMCPTranslator
-from aishell.utils import get_transcript_manager, get_env_manager, load_env_on_startup
+from aishell.utils import get_transcript_manager, get_env_manager, load_env_on_startup, get_mcp_capability_manager
 
 console = Console()
 
@@ -478,6 +478,34 @@ class IntelligentShell:
         if len(self.aliases) > 10:
             console.print(f"  [dim]... and {len(self.aliases) - 10} more[/dim]")
     
+    def _enhance_query_with_mcp_context(self, query: str) -> str:
+        """Enhance LLM query with MCP capability context when relevant."""
+        # Check if query might benefit from MCP context
+        mcp_keywords = [
+            'database', 'sql', 'query', 'table', 'postgres', 'mysql', 'sqlite',
+            'github', 'gitlab', 'repository', 'repo', 'git', 'commit', 'issue',
+            'jira', 'atlassian', 'ticket', 'project', 'task', 'workflow',
+            'docker', 'container', 'kubernetes', 'k8s', 'pod', 'deployment',
+            'aws', 's3', 'cloud', 'storage', 'bucket', 'gcp', 'google cloud',
+            'file', 'directory', 'folder', 'filesystem', 'web', 'fetch', 'url',
+            'memory', 'remember', 'store', 'recall', 'knowledge'
+        ]
+        
+        query_lower = query.lower()
+        if any(keyword in query_lower for keyword in mcp_keywords):
+            mcp_manager = get_mcp_capability_manager()
+            mcp_context = mcp_manager.generate_mcp_context_prompt()
+            
+            if mcp_context != "No MCP servers are currently configured.":
+                enhanced_query = f"""{query}
+
+{mcp_context}
+
+Please consider whether any of the available MCP tools could help with this request and suggest appropriate commands if relevant."""
+                return enhanced_query
+        
+        return query
+    
     def _handle_llm(self, command: str) -> Tuple[int, str, str]:
         """Handle LLM queries."""
         try:
@@ -537,6 +565,9 @@ class IntelligentShell:
             else:
                 provider = provider_map[provider_name]()
             
+            # Enhance query with MCP context if relevant
+            enhanced_query = self._enhance_query_with_mcp_context(query)
+            
             # Run the query
             async def run_query():
                 transcript = get_transcript_manager()
@@ -544,12 +575,12 @@ class IntelligentShell:
                 if stream:
                     console.print(f"[blue]Streaming from {provider_name}...[/blue]")
                     streamed_content = ""
-                    async for chunk in provider.stream_query(query, model=model):
+                    async for chunk in provider.stream_query(enhanced_query, model=model):
                         console.print(chunk, end="")
                         streamed_content += chunk
                     console.print()  # Final newline
                     
-                    # Log streamed response to transcript
+                    # Log streamed response to transcript (use original query for logging)
                     transcript.log_interaction(
                         query=query,
                         response=streamed_content,
@@ -558,11 +589,11 @@ class IntelligentShell:
                     )
                 else:
                     with console.status(f"[yellow]Querying {provider_name}...[/yellow]"):
-                        response = await provider.query(query, model=model)
+                        response = await provider.query(enhanced_query, model=model)
                     
                     if response.is_error:
                         console.print(f"[red]Error:[/red] {response.error}")
-                        # Log error to transcript
+                        # Log error to transcript (use original query for logging)
                         transcript.log_interaction(
                             query=query,
                             response="",
@@ -583,7 +614,7 @@ class IntelligentShell:
                         if response.usage:
                             console.print(f"[dim]Tokens: {response.usage.get('total_tokens', 'N/A')}[/dim]")
                         
-                        # Log successful response to transcript
+                        # Log successful response to transcript (use original query for logging)
                         transcript.log_interaction(
                             query=query,
                             response=response.content,
