@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import threading
 from rich.console import Console
 
@@ -172,6 +172,32 @@ class EnvManager:
         }
         
         return configs.get(provider, {})
+    
+    def get_mcp_servers(self) -> Dict[str, str]:
+        """Get configured MCP servers from environment."""
+        servers = {}
+        
+        # Get all environment variables that start with MCP_
+        for key, value in self._loaded_vars.items():
+            if key.startswith('MCP_') and key.endswith('_SERVER') and value:
+                # Convert MCP_POSTGRES_SERVER to 'postgres'
+                server_name = key[4:-7].lower()  # Remove 'MCP_' prefix and '_SERVER' suffix
+                servers[server_name] = value
+        
+        return servers
+    
+    def list_available_mcp_servers(self) -> List[str]:
+        """List all available MCP server types from .env.example."""
+        available_servers = [
+            'postgres', 'sqlite', 'mysql',       # Database servers
+            'github', 'gitlab',                  # Version control
+            'jira', 'atlassian',                # Atlassian tools
+            'filesystem', 'fetch', 'memory',     # File/web servers
+            'docker', 'kubernetes',              # Development tools
+            'aws', 'gcp',                       # Cloud services
+            'custom_1', 'custom_2'              # Custom servers
+        ]
+        return available_servers
 
 
 # Global environment manager instance

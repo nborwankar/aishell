@@ -207,6 +207,8 @@ env reload                 # Reload .env file
 - `env set <key> <value>` - Set runtime variable
 - `env llm <provider>` - Show provider configuration
 - `env default <provider>` - Set default LLM provider
+- `env mcp` - Show configured MCP servers
+- `env mcp-list` - List all available MCP server types
 
 ## LLM Providers
 
@@ -228,6 +230,56 @@ env reload                 # Reload .env file
    - All locally installed models
    - Requires: Local Ollama installation
    - Optional: `OLLAMA_URL` (default: http://localhost:11434)
+
+## MCP Servers
+
+### Supported MCP Server Types
+
+#### Database Servers
+- **PostgreSQL**: `@modelcontextprotocol/server-postgres` - Full PostgreSQL database access
+- **SQLite**: `@modelcontextprotocol/server-sqlite` - Local SQLite database operations
+- **MySQL**: `dbhub-mcp-server` - MySQL database connectivity
+
+#### Version Control
+- **GitHub**: `@modelcontextprotocol/server-github` - Repository management and GitHub API
+- **GitLab**: `@modelcontextprotocol/server-gitlab` - GitLab project and CI/CD operations
+
+#### Atlassian/JIRA
+- **JIRA**: `mcp-jira` - JIRA project management and issue tracking
+- **Atlassian**: `mcp-atlassian` - Full Atlassian suite (Confluence, JIRA)
+
+#### File System & Web
+- **File System**: `@modelcontextprotocol/server-filesystem` - Secure file operations
+- **Web Fetch**: `@modelcontextprotocol/server-fetch` - Web content fetching
+- **Memory**: `@modelcontextprotocol/server-memory` - Persistent knowledge graph
+
+#### Development Tools
+- **Docker**: `docker-mcp-server` - Docker container management
+- **Kubernetes**: `mcp-kubernetes` - Kubernetes cluster operations
+
+#### Cloud Services
+- **AWS S3**: `mcp-aws-s3` - Amazon S3 storage operations
+- **Google Cloud**: `mcp-gcp-storage` - Google Cloud storage
+
+### MCP Server Configuration
+Configure MCP servers in your `.env` file:
+```bash
+# Database servers
+MCP_POSTGRES_SERVER=npx -y @modelcontextprotocol/server-postgres postgresql://localhost/mydb
+MCP_SQLITE_SERVER=npx -y @modelcontextprotocol/server-sqlite /path/to/database.db
+
+# Version control
+MCP_GITHUB_SERVER=npx -y @modelcontextprotocol/server-github
+MCP_GITLAB_SERVER=npx -y @modelcontextprotocol/server-gitlab
+
+# Atlassian tools
+MCP_JIRA_SERVER=npx -y mcp-jira
+MCP_ATLASSIAN_SERVER=npx -y mcp-atlassian
+
+# View configured servers
+env mcp                    # Show configured MCP servers
+env mcp-list              # List all available server types
+```
 
 ## Files Generated
 - `LLMTranscript.md` - All LLM interaction history with timestamps

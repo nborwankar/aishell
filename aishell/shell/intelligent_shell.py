@@ -446,7 +446,7 @@ class IntelligentShell:
             ("collate \"query\"", "Collate responses across LLM providers"),
             ("mcp <url> <cmd>", "Interact with MCP servers"),
             ("generate <lang> <desc>", "Generate code in specified language"),
-            ("env <subcommand>", "Manage environment variables"),
+            ("env <subcommand>", "Manage environment variables and MCP servers"),
         ]
         
         # Add NL command if available
@@ -834,6 +834,8 @@ Subcommands:
   set <key> <value>   Set environment variable (runtime only)
   llm <provider>      Show LLM configuration for provider
   default <provider>  Set default LLM provider (runtime only)
+  mcp                 Show configured MCP servers
+  mcp-list            List all available MCP server types
 
 Examples:
   env reload
@@ -841,7 +843,9 @@ Examples:
   env get ANTHROPIC_API_KEY
   env set TEMP_VAR value
   env llm claude
-  env default openai"""
+  env default openai
+  env mcp
+  env mcp-list"""
                 console.print(help_text)
                 return 0, "", ""
             
@@ -931,8 +935,53 @@ Examples:
                 console.print("[dim]Note: This change affects current session only. Update .env to persist.[/dim]")
                 return 0, "", ""
             
+            elif subcommand == "mcp":
+                servers = env_manager.get_mcp_servers()
+                
+                if not servers:
+                    console.print("[yellow]No MCP servers configured[/yellow]")
+                    console.print("[dim]Configure servers in .env file with MCP_*_SERVER variables[/dim]")
+                    return 0, "", ""
+                
+                from rich.table import Table
+                table = Table(title="Configured MCP Servers", show_header=True)
+                table.add_column("Name", style="cyan")
+                table.add_column("Command/URL", style="white")
+                
+                for name, command in servers.items():
+                    table.add_row(name.title(), command)
+                
+                console.print(table)
+                return 0, "", ""
+            
+            elif subcommand == "mcp-list":
+                available = env_manager.list_available_mcp_servers()
+                
+                from rich.table import Table
+                table = Table(title="Available MCP Server Types", show_header=True)
+                table.add_column("Category", style="cyan")
+                table.add_column("Servers", style="white")
+                
+                categories = {
+                    "Database": ["postgres", "sqlite", "mysql"],
+                    "Version Control": ["github", "gitlab"],
+                    "Atlassian": ["jira", "atlassian"],
+                    "File/Web": ["filesystem", "fetch", "memory"],
+                    "Development": ["docker", "kubernetes"],
+                    "Cloud": ["aws", "gcp"],
+                    "Custom": ["custom_1", "custom_2"]
+                }
+                
+                for category, servers in categories.items():
+                    table.add_row(category, ", ".join(servers))
+                
+                console.print(table)
+                console.print("\n[dim]Configure in .env as MCP_<NAME>_SERVER=<command>[/dim]")
+                console.print("[dim]Example: MCP_POSTGRES_SERVER=npx -y @modelcontextprotocol/server-postgres postgresql://localhost/mydb[/dim]")
+                return 0, "", ""
+            
             else:
-                return 1, "", f"Unknown subcommand: {subcommand}. Use: reload, show, get, set, llm, default"
+                return 1, "", f"Unknown subcommand: {subcommand}. Use: reload, show, get, set, llm, default, mcp, mcp-list"
         
         except Exception as e:
             return 1, "", f"Env error: {str(e)}"
