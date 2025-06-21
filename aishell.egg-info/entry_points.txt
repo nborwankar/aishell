@@ -1,0 +1,2 @@
+[console_scripts]
+aishell = aishell.cli:main
