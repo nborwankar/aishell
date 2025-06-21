@@ -2,6 +2,56 @@
 
 ## Phase 2 Completion - 2025-06-21
 
+### Enhanced Shell with Built-in Commands
+- **LLM Built-in Commands**: Added `llm`, `collate`, `mcp`, and `generate` commands directly in shell
+- **Environment Management**: Added `env` command with subcommands (reload, show, get, set, llm, default)
+- **Default Behavior**: Unrecognized commands automatically treated as LLM queries
+- **Command Integration**: All shell commands use environment configuration automatically
+
+### Environment Variable Management System
+- **Automatic .env Loading**: Environment variables loaded on startup (CLI and shell)
+- **Dynamic Reloading**: `env reload` command to reload .env without restart
+- **Secure Display**: API keys and sensitive values masked in output
+- **Provider Configuration**: LLM providers automatically configured from environment
+- **Configuration Template**: Complete `.env.example` with all supported variables
+
+#### Environment Features:
+- `env reload` - Reload .env file with change detection
+- `env show [filter]` - Display environment variables with optional filtering  
+- `env get <key>` - Get specific environment variable value
+- `env set <key> <value>` - Set runtime environment variable (not persisted)
+- `env llm <provider>` - Show LLM configuration for specific provider
+- `env default <provider>` - Set default LLM provider for current session
+
+### Configurable Default LLM Provider
+- **Environment-Based Defaults**: `DEFAULT_LLM_PROVIDER` in .env sets application default
+- **Runtime Changes**: Change default provider with `env default <provider>`
+- **Smart Collation**: Collate uses configured default + one alternative for comparison
+- **Command Override**: CLI `--provider` flag overrides environment defaults
+- **Priority System**: CLI flags > .env variables > hardcoded defaults
+
+### LLM Interaction Transcript Logging
+- **Persistent Logging**: All LLM interactions logged to `LLMTranscript.md`
+- **Error Separation**: Detailed errors logged separately to `LLMErrors.md`
+- **Clean Transcript**: Main transcript shows brief error references with timestamps
+- **Thread-Safe Operations**: Safe concurrent access to transcript files
+- **Comprehensive Coverage**: Logs single queries, collations, streaming, and errors
+
+#### Transcript Features:
+- Timestamped entries with provider and model information
+- Usage statistics (token counts) when available
+- Error correlation via timestamps between files
+- Multi-LLM collation logging with per-provider responses
+- Markdown formatting for readability
+
+### Command Terminology Updates
+- **"Compare" to "Collate"**: Renamed multi-LLM functionality to use "collate" terminology
+- **Shell Command**: `collate "query" [--providers p1 p2 ...]`
+- **CLI Command**: `aishell collate "query" --providers claude openai`
+- **Updated Documentation**: All help text and examples use "collate"
+
+## Phase 2 Completion - 2025-06-21
+
 ### LLM Integration Module (`aishell/llm/`)
 - Created abstract base class `LLMProvider` with async query and streaming methods
 - Implemented 4 LLM providers:

@@ -15,8 +15,12 @@
 - [x] Generate MCP messages from natural language queries
 - [x] Enhance interactive shell with LLM built-in commands
 - [x] Add MCP built-in commands to shell
-- [x] Implement magic commands for multi-queries
+- [x] Implement magic commands for multi-queries (renamed to "collate")
 - [x] Add code generation commands within shell
+- [x] Environment variable management system (.env loading)
+- [x] LLM interaction transcript logging (LLMTranscript.md + LLMErrors.md)
+- [x] Configurable default LLM provider system
+- [x] Enhanced shell with env management commands
 
 --
 
