@@ -60,3 +60,24 @@ This file contains detailed error information for failed LLM interactions.
 **Error:** API key not configured
 
 ---
+**2025-06-21 00:11:50 | CLAUDE (unknown)**
+
+**Query:** test query with spaces
+
+**Error:** API key not configured
+
+---
+**2025-06-21 00:11:50 | CLAUDE (claude-3-sonnet-20240229)**
+
+**Query:** another test query
+
+**Error:** API key not configured
+
+---
+**2025-06-21 00:11:50 | OPENAI (gpt-3.5-turbo)**
+
+**Query:** another test query
+
+**Error:** API key not configured
+
+---

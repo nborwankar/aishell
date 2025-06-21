@@ -141,3 +141,54 @@ Test response
 *Usage: total_tokens: 10*
 
 ---
+**2025-06-21 00:11:50 | CLAUDE (test-model)**
+
+**Query:** test query
+
+**Response:**
+Test response
+
+**Usage:** total_tokens: 10
+
+---
+**2025-06-21 00:11:50 | CLAUDE (unknown)**
+
+**Query:** test query with spaces
+
+**Response:** Failed (see log with timestamp 2025-06-21 00:11:50)
+
+---
+**2025-06-21 00:11:50 | COLLATION (claude, openai)**
+
+**Query:** another test query
+
+**Responses:**
+
+### CLAUDE
+
+Failed (see log with timestamp 2025-06-21 00:11:50)
+
+### OPENAI
+
+Failed (see log with timestamp 2025-06-21 00:11:50)
+
+---
+**2025-06-21 00:11:50 | COLLATION (claude, openai)**
+
+**Query:** test
+
+**Responses:**
+
+### CLAUDE
+
+Test response
+
+*Usage: total_tokens: 10*
+
+### OPENAI
+
+Test response
+
+*Usage: total_tokens: 10*
+
+---

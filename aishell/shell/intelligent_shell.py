@@ -486,7 +486,10 @@ class IntelligentShell:
                 return 1, "", "Usage: llm \"query\" [--provider provider] [--model model] [--stream]"
             
             query = parts[1]
-            provider_name = "claude"  # default
+            
+            # Get default provider from environment
+            env_manager = get_env_manager()
+            provider_name = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
             model = None
             stream = False
             
@@ -656,7 +659,22 @@ class IntelligentShell:
                 return 1, "", "Usage: collate \"query\" [--providers p1 p2 ...]"
             
             query = parts[1]
-            providers = ['claude', 'openai']  # default providers
+            
+            # Get default providers from environment, fallback to claude and openai
+            env_manager = get_env_manager()
+            default_provider = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
+            
+            # Default to the configured provider and one alternative for comparison
+            if default_provider == 'claude':
+                providers = ['claude', 'openai']
+            elif default_provider == 'openai':
+                providers = ['openai', 'claude']
+            elif default_provider == 'gemini':
+                providers = ['gemini', 'claude']
+            elif default_provider == 'ollama':
+                providers = ['ollama', 'claude']
+            else:
+                providers = ['claude', 'openai']  # fallback
             
             # Parse providers
             if "--providers" in parts:
@@ -815,13 +833,15 @@ Subcommands:
   get <key>           Get value of environment variable
   set <key> <value>   Set environment variable (runtime only)
   llm <provider>      Show LLM configuration for provider
+  default <provider>  Set default LLM provider (runtime only)
 
 Examples:
   env reload
   env show API
   env get ANTHROPIC_API_KEY
   env set TEMP_VAR value
-  env llm claude"""
+  env llm claude
+  env default openai"""
                 console.print(help_text)
                 return 0, "", ""
             
@@ -892,8 +912,27 @@ Examples:
                 console.print(table)
                 return 0, "", ""
             
+            elif subcommand == "default":
+                if len(parts) < 3:
+                    current_default = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
+                    console.print(f"Current default LLM provider: [cyan]{current_default}[/cyan]")
+                    console.print("Available providers: claude, openai, gemini, ollama")
+                    console.print("Usage: env default <provider>")
+                    return 0, "", ""
+                
+                provider = parts[2].lower()
+                valid_providers = ['claude', 'openai', 'gemini', 'ollama']
+                
+                if provider not in valid_providers:
+                    return 1, "", f"Invalid provider: {provider}. Use: {', '.join(valid_providers)}"
+                
+                env_manager.set_var('DEFAULT_LLM_PROVIDER', provider)
+                console.print(f"[green]Default LLM provider set to: {provider}[/green]")
+                console.print("[dim]Note: This change affects current session only. Update .env to persist.[/dim]")
+                return 0, "", ""
+            
             else:
-                return 1, "", f"Unknown subcommand: {subcommand}. Use: reload, show, get, set, llm"
+                return 1, "", f"Unknown subcommand: {subcommand}. Use: reload, show, get, set, llm, default"
         
         except Exception as e:
             return 1, "", f"Env error: {str(e)}"

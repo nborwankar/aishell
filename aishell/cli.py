@@ -165,7 +165,7 @@ def shell(no_history, config, nl_provider, ollama_model, anthropic_api_key):
 
 @main.command()
 @click.argument('query', nargs=-1, required=True)
-@click.option('--provider', '-p', type=click.Choice(['claude', 'openai', 'ollama', 'gemini']), default='claude', help='LLM provider to use')
+@click.option('--provider', '-p', type=click.Choice(['claude', 'openai', 'ollama', 'gemini']), help='LLM provider to use (defaults to DEFAULT_LLM_PROVIDER from .env)')
 @click.option('--model', '-m', help='Model to use (provider-specific)')
 @click.option('--temperature', '-t', default=0.7, help='Temperature for sampling')
 @click.option('--max-tokens', default=None, type=int, help='Maximum tokens to generate')
@@ -187,17 +187,32 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
     async def run_query():
         transcript = get_transcript_manager()
         
-        # Create the appropriate provider
-        if provider == 'claude':
-            llm = ClaudeLLMProvider(api_key=api_key)
-        elif provider == 'openai':
-            llm = OpenAILLMProvider(api_key=api_key, base_url=openai_url)
-        elif provider == 'ollama':
-            llm = OllamaLLMProvider(base_url=ollama_url)
-        elif provider == 'gemini':
-            llm = GeminiLLMProvider(api_key=api_key)
+        # Get default provider if none specified
+        from aishell.utils import get_env_manager
+        if provider is None:
+            env_manager = get_env_manager()
+            provider_name = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
+        else:
+            provider_name = provider
         
-        console.print(f"[blue]Provider:[/blue] {provider}")
+        # Get configuration from environment manager
+        env_manager = get_env_manager()
+        config = env_manager.get_llm_config(provider_name)
+        
+        # Create the appropriate provider with env config
+        if provider_name == 'claude':
+            llm = ClaudeLLMProvider(api_key=api_key or config.get('api_key'))
+        elif provider_name == 'openai':
+            llm = OpenAILLMProvider(
+                api_key=api_key or config.get('api_key'),
+                base_url=openai_url or config.get('base_url')
+            )
+        elif provider_name == 'ollama':
+            llm = OllamaLLMProvider(base_url=ollama_url or config.get('base_url'))
+        elif provider_name == 'gemini':
+            llm = GeminiLLMProvider(api_key=api_key or config.get('api_key'))
+        
+        console.print(f"[blue]Provider:[/blue] {provider_name}")
         if model:
             console.print(f"[blue]Model:[/blue] {model}")
         else:
@@ -226,7 +241,7 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
             transcript.log_interaction(
                 query=query_str,
                 response=streamed_content,
-                provider=provider,
+                provider=provider_name,
                 model=model or llm.default_model
             )
         else:
@@ -245,7 +260,7 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
                 transcript.log_interaction(
                     query=query_str,
                     response="",
-                    provider=provider,
+                    provider=provider_name,
                     model=model or "unknown",
                     error=response.error
                 )
@@ -271,7 +286,7 @@ def query(query, provider, model, temperature, max_tokens, stream, api_key, olla
                 transcript.log_interaction(
                     query=query_str,
                     response=response.content,
-                    provider=provider,
+                    provider=provider_name,
                     model=response.model,
                     usage=response.usage
                 )
