@@ -26,7 +26,7 @@ An intelligent command line tool built in Python that provides web search, intel
 ### 🤖 LLM Integration
 - **4 LLM Providers**: Claude (Anthropic), OpenAI, Gemini (Google), Ollama (local)
 - **Configurable Models**: Each provider's model configurable via environment variables
-- **Latest Defaults**: Claude 3.5 Sonnet, GPT-4o-mini, Gemini 1.5 Flash, Llama 3.2
+- **Latest Defaults**: Claude 3.7 Sonnet, GPT-4o-mini, Gemini 2.5 Flash, Llama 3.2
 - **Single Queries**: Query any provider with streaming support
 - **Multi-LLM Collation**: Compare responses across providers simultaneously
 - **Environment Integration**: Automatic API key and model loading from `.env`
@@ -88,9 +88,9 @@ DEFAULT_LLM_PROVIDER=claude
 DEFAULT_TEMPERATURE=0.7
 
 # Provider-Specific Models (easily configurable)
-CLAUDE_MODEL=claude-3-5-sonnet-20241022
+CLAUDE_MODEL=claude-3-7-sonnet-20250219
 OPENAI_MODEL=gpt-4o-mini
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-2.5-flash
 OLLAMA_MODEL=llama3.2
 
 # Provider URLs
@@ -223,9 +223,9 @@ env reload                 # Reload .env file
 
 ### Supported Providers
 1. **Claude (Anthropic)**
-   - Default Model: `claude-3-5-sonnet-20241022` (configurable via `CLAUDE_MODEL`)
+   - Default Model: `claude-3-7-sonnet-20250219` (configurable via `CLAUDE_MODEL`)
    - Requires: `ANTHROPIC_API_KEY`
-   - Available Models: claude-3-5-sonnet, claude-3-opus, claude-3-haiku, etc.
+   - Available Models: claude-3-7-sonnet, claude-3-5-sonnet, claude-3-opus, claude-3-haiku, etc.
 
 2. **OpenAI**
    - Default Model: `gpt-4o-mini` (configurable via `OPENAI_MODEL`)
@@ -234,9 +234,9 @@ env reload                 # Reload .env file
    - Optional: `OPENAI_BASE_URL` for custom endpoints
 
 3. **Gemini (Google)**
-   - Default Model: `gemini-1.5-flash` (configurable via `GEMINI_MODEL`)
+   - Default Model: `gemini-2.5-flash` (configurable via `GEMINI_MODEL`)
    - Requires: `GOOGLE_API_KEY`
-   - Available Models: gemini-1.5-pro, gemini-1.5-flash, gemini-pro, etc.
+   - Available Models: gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash, gemini-pro, etc.
 
 4. **Ollama (Local)**
    - Default Model: `llama3.2` (configurable via `OLLAMA_MODEL`)
@@ -250,9 +250,9 @@ To use newer models as they become available:
 1. **Edit your `.env` file**:
    ```bash
    # Update to latest models
-   CLAUDE_MODEL=claude-3-5-sonnet-20241022
+   CLAUDE_MODEL=claude-3-7-sonnet-20250219
    OPENAI_MODEL=gpt-4o
-   GEMINI_MODEL=gemini-1.5-pro
+   GEMINI_MODEL=gemini-2.5-flash
    OLLAMA_MODEL=llama3.2
    ```
 
