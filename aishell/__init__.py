@@ -1,3 +1,3 @@
-__version__ = "0.1.0"
-__author__ = "Your Name"
-__email__ = "your.email@example.com"
+__version__ = "0.3.0"
+__author__ = "Nitin Borwankar"
+__email__ = "nborwankar@gmail.com"
