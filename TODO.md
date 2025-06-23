@@ -28,6 +28,7 @@
 - [x] **MIT License**: Added proper open source licensing
 - [x] **LLM Dependencies**: Added all LLM provider packages as required dependencies
 - [x] **CLI Parameter Fix**: Fixed Click warning for duplicate -t parameter usage
+- [x] **CLI Command Refactoring**: New intuitive syntax - `aishell llm [provider] "query"` and `aishell collate <p1> <p2> "query"`
 
 --
 

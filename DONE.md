@@ -1,5 +1,67 @@
 # DONE - Development Log
 
+## CLI Command Structure Refactoring - 2025-06-23
+
+### New Command Syntax Implementation
+- **Simplified LLM Commands**: Replaced `aishell query` with `aishell llm [provider] "query"`
+- **Improved Collate Syntax**: Changed `aishell collate` to `aishell collate <provider1> <provider2> "query"`
+- **Model-Free Interface**: Removed `--model` parameter from command line (uses env defaults only)
+- **Provider Validation**: Added comprehensive provider validation with clear error messages
+
+#### New Command Structure:
+```bash
+# LLM Commands
+aishell llm "Hello world"                    # Uses default provider
+aishell llm claude "Explain quantum computing"
+aishell llm openai "Write a function"
+aishell llm gemini "Tell me a joke" --stream
+
+# Collate Commands  
+aishell collate claude openai "What is 2+2?"
+aishell collate gemini claude "Compare approaches" --table
+```
+
+#### Shell Built-in Updates:
+- Updated `_handle_llm()` to support new syntax: `llm [provider] "query"`
+- Updated `_handle_collate()` to support new syntax: `collate <provider1> <provider2> "query"`
+- Maintained backward compatibility for common use cases
+- Added provider validation and default provider messaging
+
+#### Documentation Updates:
+- **README.md**: Updated all LLM command examples with new syntax
+- **PROJECT_STATUS.md**: Updated command reference and workflow examples
+- **DEVELOPMENT_NOTES.md**: Updated command reference documentation
+- **SYNTAX_OPTIONS.md**: Created (legacy file, shows historical syntax considerations)
+
+#### Test Updates:
+- **Integration Tests**: Updated all `test_integration.py` tests to new command syntax
+- **Shell Tests**: Updated `test_shell_enhancements.py` for new command parsing
+- **Help Text Validation**: Updated test assertions for new help text format
+- **All Tests Passing**: Verified functionality with comprehensive test suite
+
+#### Implementation Details:
+- Modified `aishell/cli.py` with new Click command definitions
+- Updated provider creation logic to use environment configuration
+- Added default provider detection and info messaging
+- Maintained all existing functionality (streaming, temperature, max-tokens, etc.)
+- Preserved transcript logging and error handling
+
+#### Benefits:
+- **Intuitive Syntax**: Provider comes first, more natural command flow
+- **Simplified Interface**: Removed complex model specification from CLI
+- **Better UX**: Clear provider validation and default messaging
+- **Consistent**: Shell and CLI commands now have identical syntax
+- **Future-Proof**: Environment-based model selection maintained
+
+#### Files Modified:
+- `aishell/cli.py` - Complete refactoring of llm and collate commands
+- `aishell/shell/intelligent_shell.py` - Updated shell built-in command handlers
+- `tests/test_integration.py` - Updated all LLM integration tests
+- `tests/test_shell_enhancements.py` - Updated shell command parsing tests
+- `README.md` - Updated all command examples and reference
+- `PROJECT_STATUS.md` - Updated command listings and workflows
+- `DEVELOPMENT_NOTES.md` - Updated command reference
+
 ## Configurable Model Selection - 2025-06-23
 
 ### Environment-Based Model Configuration

@@ -300,6 +300,39 @@ When resuming development:
 
 ---
 
-**Status**: Phase 1 complete, ready for Phase 2 development
-**Last Updated**: 2025-06-21
-**Next Session**: Begin Phase 2 implementation after user testing feedback
+## ⚡ CLI Command Refactoring (2025-06-23)
+
+### Implementation Summary
+Completed major CLI refactoring to improve user experience and command intuitive-ness:
+
+#### Breaking Changes
+- **LLM Commands**: `aishell query` → `aishell llm [provider] "query"`
+- **Collate Commands**: `aishell collate "query" --providers p1 p2` → `aishell collate <p1> <p2> "query"`
+- **Model Specification**: Removed `--model` parameter (uses environment defaults)
+
+#### Technical Implementation
+- Modified Click command definitions in `cli.py`
+- Updated argument parsing for provider-first syntax
+- Enhanced provider validation with clear error messages
+- Maintained all existing functionality (streaming, temperature, etc.)
+- Updated shell built-in commands to match CLI syntax
+- Comprehensive test suite updates
+
+#### User Experience Improvements
+- **Intuitive Flow**: Provider specification comes first, feels more natural
+- **Simplified Interface**: No complex model selection on command line
+- **Clear Messaging**: Shows which provider/model being used
+- **Error Guidance**: Helpful messages for invalid providers
+- **Consistent Syntax**: CLI and shell commands now identical
+
+#### Documentation & Testing
+- Updated all documentation files with new command examples
+- Modified integration tests for new command structure
+- Updated shell enhancement tests for new parsing logic
+- All tests passing with new syntax verified
+
+---
+
+**Status**: Phase 2 complete with CLI refactoring, production ready
+**Last Updated**: 2025-06-23
+**Next Session**: Ready for user feedback and potential Phase 3 features
