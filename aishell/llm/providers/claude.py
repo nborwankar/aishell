@@ -27,7 +27,9 @@ class ClaudeLLMProvider(LLMProvider):
     @property
     def default_model(self) -> str:
         """Return the default model."""
-        return "claude-3-sonnet-20240229"
+        from aishell.utils import get_env_manager
+        env_manager = get_env_manager()
+        return env_manager.get_var('CLAUDE_MODEL', 'claude-3-5-sonnet-20241022')
     
     def validate_config(self) -> bool:
         """Validate the provider configuration."""

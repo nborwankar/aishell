@@ -84,8 +84,13 @@ GOOGLE_API_KEY=your-gemini-api-key-here
 
 # Default LLM Settings
 DEFAULT_LLM_PROVIDER=claude
-DEFAULT_LLM_MODEL=claude-3-sonnet-20240229
 DEFAULT_TEMPERATURE=0.7
+
+# Provider-Specific Models (easily configurable)
+CLAUDE_MODEL=claude-3-5-sonnet-20241022
+OPENAI_MODEL=gpt-4o-mini
+GEMINI_MODEL=gemini-1.5-flash
+OLLAMA_MODEL=llama3.2
 
 # Provider URLs
 OLLAMA_URL=http://localhost:11434
@@ -214,22 +219,45 @@ env reload                 # Reload .env file
 
 ### Supported Providers
 1. **Claude (Anthropic)**
-   - Models: claude-3-sonnet, claude-3-opus, claude-3-haiku
+   - Default Model: `claude-3-5-sonnet-20241022` (configurable via `CLAUDE_MODEL`)
    - Requires: `ANTHROPIC_API_KEY`
+   - Available Models: claude-3-5-sonnet, claude-3-opus, claude-3-haiku, etc.
 
 2. **OpenAI**
-   - Models: gpt-4, gpt-3.5-turbo, custom models
+   - Default Model: `gpt-4o-mini` (configurable via `OPENAI_MODEL`)
    - Requires: `OPENAI_API_KEY`
+   - Available Models: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo, etc.
    - Optional: `OPENAI_BASE_URL` for custom endpoints
 
 3. **Gemini (Google)**
-   - Models: gemini-pro, gemini-pro-vision
+   - Default Model: `gemini-1.5-flash` (configurable via `GEMINI_MODEL`)
    - Requires: `GOOGLE_API_KEY`
+   - Available Models: gemini-1.5-pro, gemini-1.5-flash, gemini-pro, etc.
 
 4. **Ollama (Local)**
-   - All locally installed models
+   - Default Model: `llama3.2` (configurable via `OLLAMA_MODEL`)
    - Requires: Local Ollama installation
+   - Available Models: Any locally installed models (llama3.2, llama3.1, mistral, etc.)
    - Optional: `OLLAMA_URL` (default: http://localhost:11434)
+
+### Updating Models
+To use newer models as they become available:
+
+1. **Edit your `.env` file**:
+   ```bash
+   # Update to latest models
+   CLAUDE_MODEL=claude-3-5-sonnet-20241022
+   OPENAI_MODEL=gpt-4o
+   GEMINI_MODEL=gemini-1.5-pro
+   OLLAMA_MODEL=llama3.2
+   ```
+
+2. **Reload environment** (in shell):
+   ```bash
+   env reload
+   ```
+
+3. **Or restart the application** to pick up changes
 
 ## MCP Servers
 

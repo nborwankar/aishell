@@ -146,26 +146,26 @@ class EnvManager:
         configs = {
             'claude': {
                 'api_key': self.get_var('ANTHROPIC_API_KEY'),
-                'model': self.get_var('DEFAULT_LLM_MODEL', 'claude-3-sonnet-20240229'),
+                'model': self.get_var('CLAUDE_MODEL', 'claude-3-5-sonnet-20241022'),
                 'temperature': self.get_var('DEFAULT_TEMPERATURE', '0.7'),
                 'max_tokens': self.get_var('DEFAULT_MAX_TOKENS', '4096')
             },
             'openai': {
                 'api_key': self.get_var('OPENAI_API_KEY'),
                 'base_url': self.get_var('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
-                'model': self.get_var('DEFAULT_LLM_MODEL', 'gpt-3.5-turbo'),
+                'model': self.get_var('OPENAI_MODEL', 'gpt-4o-mini'),
                 'temperature': self.get_var('DEFAULT_TEMPERATURE', '0.7'),
                 'max_tokens': self.get_var('DEFAULT_MAX_TOKENS', '4096')
             },
             'gemini': {
                 'api_key': self.get_var('GOOGLE_API_KEY'),
-                'model': self.get_var('DEFAULT_LLM_MODEL', 'gemini-pro'),
+                'model': self.get_var('GEMINI_MODEL', 'gemini-1.5-flash'),
                 'temperature': self.get_var('DEFAULT_TEMPERATURE', '0.7'),
                 'max_tokens': self.get_var('DEFAULT_MAX_TOKENS', '4096')
             },
             'ollama': {
                 'base_url': self.get_var('OLLAMA_URL', 'http://localhost:11434'),
-                'model': self.get_var('DEFAULT_LLM_MODEL', 'llama2'),
+                'model': self.get_var('OLLAMA_MODEL', 'llama3.2'),
                 'temperature': self.get_var('DEFAULT_TEMPERATURE', '0.7'),
                 'max_tokens': self.get_var('DEFAULT_MAX_TOKENS', '4096')
             }

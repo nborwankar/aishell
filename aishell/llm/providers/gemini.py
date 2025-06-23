@@ -27,7 +27,9 @@ class GeminiLLMProvider(LLMProvider):
     @property
     def default_model(self) -> str:
         """Return the default model."""
-        return "gemini-pro"
+        from aishell.utils import get_env_manager
+        env_manager = get_env_manager()
+        return env_manager.get_var('GEMINI_MODEL', 'gemini-1.5-flash')
     
     def validate_config(self) -> bool:
         """Validate the provider configuration."""

@@ -17,7 +17,7 @@ class TestClaudeLLMProvider:
         
         assert provider.api_key == "test-key"
         assert provider.name == "claude"
-        assert provider.default_model == "claude-3-sonnet-20240229"
+        assert provider.default_model == "claude-3-5-sonnet-20241022"
     
     def test_validation_with_key(self):
         """Test validation with API key."""
@@ -60,7 +60,7 @@ class TestClaudeLLMProvider:
         
         assert not response.is_error
         assert response.content == "Hello, this is Claude!"
-        assert response.model == "claude-3-sonnet-20240229"
+        assert response.model == "claude-3-5-sonnet-20241022"
         assert response.provider == "claude"
         assert response.usage["total_tokens"] == 30
 
@@ -74,7 +74,7 @@ class TestOpenAILLMProvider:
         
         assert provider.api_key == "test-key"
         assert provider.name == "openai"
-        assert provider.default_model == "gpt-3.5-turbo"
+        assert provider.default_model == "gpt-4o-mini"
     
     def test_custom_base_url(self):
         """Test custom base URL."""
@@ -114,7 +114,7 @@ class TestOpenAILLMProvider:
         
         assert not response.is_error
         assert response.content == "Hello from GPT!"
-        assert response.model == "gpt-3.5-turbo"
+        assert response.model == "gpt-4o-mini"
         assert response.provider == "openai"
         assert response.usage["total_tokens"] == 20
 
@@ -127,7 +127,7 @@ class TestOllamaLLMProvider:
         provider = OllamaLLMProvider()
         
         assert provider.name == "ollama"
-        assert provider.default_model == "llama2"
+        assert provider.default_model == "llama3.2"
         assert provider.base_url == "http://localhost:11434"
     
     def test_custom_url(self):
@@ -175,7 +175,7 @@ class TestGeminiLLMProvider:
         
         assert provider.api_key == "test-key"
         assert provider.name == "gemini"
-        assert provider.default_model == "gemini-pro"
+        assert provider.default_model == "gemini-1.5-flash"
     
     def test_validation_with_key(self):
         """Test validation with API key."""
@@ -219,6 +219,6 @@ class TestGeminiLLMProvider:
         
         assert not response.is_error
         assert response.content == "Hello from Gemini!"
-        assert response.model == "gemini-pro"
+        assert response.model == "gemini-1.5-flash"
         assert response.provider == "gemini"
         assert response.usage["total_tokens"] == 20
