@@ -331,7 +331,7 @@ Please consider whether any of the available MCP tools could help with this requ
 @click.option('--providers', '-p', multiple=True, type=click.Choice(['claude', 'openai', 'ollama', 'gemini']), help='LLM providers to use')
 @click.option('--temperature', '-t', default=0.7, help='Temperature for sampling')
 @click.option('--max-tokens', default=None, type=int, help='Maximum tokens to generate')
-@click.option('--table', '-t', is_flag=True, help='Show results in collation table')
+@click.option('--table', '-T', is_flag=True, help='Show results in collation table')
 def collate(query, providers, temperature, max_tokens, table):
     """Send the same query to multiple LLM providers simultaneously.
     
