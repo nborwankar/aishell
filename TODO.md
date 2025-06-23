@@ -23,6 +23,11 @@
 - [x] Enhanced shell with env management commands
 - [x] **MCP Awareness System**: LLMs automatically know about available MCP capabilities
 - [x] **Default MCP Server Configurations**: 16 popular MCP servers pre-configured
+- [x] **Configurable Model Selection**: Environment-based model configuration for all providers
+- [x] **Model Updates**: Updated to latest models (Claude 3.5 Sonnet, GPT-4o-mini, Gemini 1.5 Flash, Llama 3.2)
+- [x] **MIT License**: Added proper open source licensing
+- [x] **LLM Dependencies**: Added all LLM provider packages as required dependencies
+- [x] **CLI Parameter Fix**: Fixed Click warning for duplicate -t parameter usage
 
 --
 

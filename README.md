@@ -25,10 +25,11 @@ An intelligent command line tool built in Python that provides web search, intel
 
 ### 🤖 LLM Integration
 - **4 LLM Providers**: Claude (Anthropic), OpenAI, Gemini (Google), Ollama (local)
+- **Configurable Models**: Each provider's model configurable via environment variables
+- **Latest Defaults**: Claude 3.5 Sonnet, GPT-4o-mini, Gemini 1.5 Flash, Llama 3.2
 - **Single Queries**: Query any provider with streaming support
 - **Multi-LLM Collation**: Compare responses across providers simultaneously
-- **Configurable Defaults**: Set preferred provider in `.env` file
-- **Environment Integration**: Automatic API key loading from `.env`
+- **Environment Integration**: Automatic API key and model loading from `.env`
 
 ### 🔌 MCP (Model Context Protocol) Support
 - Full JSON-RPC client for MCP server communication

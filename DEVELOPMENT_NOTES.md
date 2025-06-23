@@ -1,6 +1,6 @@
-# AIShell Development Notes - Phase 2 Complete with MCP Awareness
+# AIShell Development Notes - Phase 2 Complete with Configurable Models
 
-## 📍 Current Status (2025-06-21)
+## 📍 Current Status (2025-06-23)
 
 ### ✅ ALL PHASES COMPLETED
 Phase 1 and Phase 2 requirements have been fully implemented and tested:
@@ -48,13 +48,21 @@ All Phase 2 requirements have been implemented and tested:
 6. **Environment Management** ✅ (.env loading, runtime reload, secure display)
 7. **Transcript Logging** ✅ (persistent interaction history + error logging)
 8. **MCP Awareness System** ✅ (LLMs automatically know available MCP capabilities)
+9. **Configurable Model Selection** ✅ (Environment-based model configuration)
 
-### 🎯 Latest Addition: MCP Capability Awareness
-The system now automatically makes LLMs aware of available MCP server capabilities:
-- **Smart Context Injection**: When users ask about databases, GitHub, JIRA, etc., LLMs automatically receive information about available MCP tools
-- **14 Server Types Supported**: Complete capability descriptions for all major MCP server types
-- **Enhanced User Experience**: LLMs can now suggest appropriate MCP commands based on user queries
-- **Dynamic Discovery**: Reads configured MCP servers from environment and provides real-time capability information
+### 🎯 Latest Addition: Configurable Model Selection
+The system now supports fully configurable LLM models via environment variables:
+- **Provider-Specific Configuration**: Each provider has its own model variable (CLAUDE_MODEL, OPENAI_MODEL, etc.)
+- **Zero-Code Updates**: New models can be adopted by simply updating environment variables
+- **Latest Model Defaults**: Updated to current best-in-class models from each provider
+- **Instant Reload**: Use `env reload` to pick up new models without restarting
+- **Future-Proof**: No more hardcoded model names in the codebase
+
+### 🔧 Current Model Defaults:
+- **Claude**: claude-3-5-sonnet-20241022 (was claude-3-sonnet-20240229)
+- **OpenAI**: gpt-4o-mini (was gpt-3.5-turbo)  
+- **Gemini**: gemini-1.5-flash (was gemini-pro)
+- **Ollama**: llama3.2 (was llama2)
 ```
 
 ## 🛠️ Implementation Details
@@ -132,6 +140,11 @@ env <subcommand> [args]  # reload, show, get, set, llm, default, mcp
 - ✅ Transcript logging (LLMTranscript.md + LLMErrors.md)
 - ✅ MCP capability awareness system
 - ✅ Shell built-in commands (llm, collate, mcp, generate, env)
+- ✅ Configurable model selection (environment-based)
+- ✅ Updated model defaults to latest versions
+- ✅ MIT License and proper open source packaging
+- ✅ All LLM dependencies included by default
+- ✅ Click parameter conflict fixes
 - ✅ Comprehensive test suite (102 tests passing)
 
 ### What Needs More Testing

@@ -1,5 +1,46 @@
 # DONE - Development Log
 
+## Configurable Model Selection - 2025-06-23
+
+### Environment-Based Model Configuration
+- **Provider-Specific Models**: Replaced hardcoded model names with environment variables
+- **Future-Proof Architecture**: Models can now be updated without code changes
+- **Easy Configuration**: Models configurable via `.env` file with instant reload capability
+
+#### New Environment Variables:
+- `CLAUDE_MODEL` - Configure Claude model (default: claude-3-5-sonnet-20241022)
+- `OPENAI_MODEL` - Configure OpenAI model (default: gpt-4o-mini)
+- `GEMINI_MODEL` - Configure Gemini model (default: gemini-1.5-flash)
+- `OLLAMA_MODEL` - Configure Ollama model (default: llama3.2)
+
+#### Model Updates (BREAKING CHANGE):
+- **Claude**: `claude-3-sonnet-20240229` → `claude-3-5-sonnet-20241022`
+- **OpenAI**: `gpt-3.5-turbo` → `gpt-4o-mini`
+- **Gemini**: `gemini-pro` → `gemini-1.5-flash`
+- **Ollama**: `llama2` → `llama3.2`
+
+#### Implementation Details:
+- Modified all 4 LLM providers to read models from environment configuration
+- Updated `env_manager.py` to support provider-specific model configuration
+- Updated `.env.example` with new model variables and documentation
+- Added comprehensive model update instructions to README
+- Updated all test assertions to reflect new default models
+- Fixed Click parameter conflict (`-t` option collision in collate command)
+
+#### Benefits:
+- **Zero Code Changes**: Future model updates only require environment variable changes
+- **Instant Updates**: Use `env reload` command to pick up new models without restart
+- **Latest Models**: Defaults updated to current best-in-class models from each provider
+- **Backward Compatible**: Fallback defaults ensure system works without configuration
+
+#### Files Modified:
+- `aishell/utils/env_manager.py` - Provider-specific model configuration
+- `aishell/llm/providers/*.py` - All 4 providers now read models from environment
+- `.env.example` - Added model configuration variables
+- `README.md` - Added model configuration documentation
+- `tests/llm/test_providers.py` - Updated test assertions for new models
+- `aishell/cli.py` - Fixed Click parameter conflict warning
+
 ## MCP Awareness Implementation - 2025-06-21
 
 ### LLM MCP Capability Awareness
