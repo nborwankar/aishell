@@ -90,13 +90,13 @@ aishell spotlight <query> [--limit]
 aishell shell [--nl-provider] [--ollama-model] [--anthropic-api-key]
 
 # Phase 2 Commands
-aishell query <query> [--provider] [--model] [--stream] [--temperature]
-aishell collate <query> [--providers] [--temperature] [--max-tokens]
+aishell llm [provider] <query> [--stream] [--temperature] [--max-tokens]
+aishell collate <provider1> <provider2> <query> [--temperature] [--max-tokens] [--table]
 aishell mcp <server-url> <command> [--method] [--raw]
 aishell mcp-convert <query> [--provider] [--execute]
 
 # Shell Built-in Commands
-llm <query> [--provider] [--model] [--stream]
+llm [provider] <query> [--stream]
 collate <query> [--providers] [--temperature]
 mcp <server-url> <command>
 generate <language> <description>

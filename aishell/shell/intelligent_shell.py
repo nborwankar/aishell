@@ -507,30 +507,37 @@ Please consider whether any of the available MCP tools could help with this requ
         return query
     
     def _handle_llm(self, command: str) -> Tuple[int, str, str]:
-        """Handle LLM queries."""
+        """Handle LLM queries with new syntax: llm [provider] 'query'."""
         try:
             parts = shlex.split(command)
             if len(parts) < 2:
-                return 1, "", "Usage: llm \"query\" [--provider provider] [--model model] [--stream]"
+                return 1, "", "Usage: llm [provider] \"query\" [--stream]"
             
-            query = parts[1]
+            # Parse new syntax: llm [provider] "query"
+            valid_providers = ['claude', 'openai', 'ollama', 'gemini']
             
-            # Get default provider from environment
-            env_manager = get_env_manager()
-            provider_name = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
-            model = None
+            if parts[1] in valid_providers:
+                # llm <provider> "query" format
+                if len(parts) < 3:
+                    return 1, "", f"Usage: llm {parts[1]} \"query\" [--stream]"
+                provider_name = parts[1]
+                query = parts[2]
+                options_start = 3
+                console.print(f"[blue]Using provider: {provider_name}[/blue]")
+            else:
+                # llm "query" format (use default provider)
+                env_manager = get_env_manager()
+                provider_name = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
+                query = parts[1]
+                options_start = 2
+                console.print(f"[blue]Using default provider: {provider_name}[/blue]")
+            
             stream = False
             
-            # Parse options
-            i = 2
+            # Parse remaining options
+            i = options_start
             while i < len(parts):
-                if parts[i] == "--provider" and i + 1 < len(parts):
-                    provider_name = parts[i + 1]
-                    i += 2
-                elif parts[i] == "--model" and i + 1 < len(parts):
-                    model = parts[i + 1]
-                    i += 2
-                elif parts[i] == "--stream":
+                if parts[i] == "--stream":
                     stream = True
                     i += 1
                 else:
@@ -575,7 +582,7 @@ Please consider whether any of the available MCP tools could help with this requ
                 if stream:
                     console.print(f"[blue]Streaming from {provider_name}...[/blue]")
                     streamed_content = ""
-                    async for chunk in provider.stream_query(enhanced_query, model=model):
+                    async for chunk in provider.stream_query(enhanced_query):
                         console.print(chunk, end="")
                         streamed_content += chunk
                     console.print()  # Final newline
@@ -585,11 +592,11 @@ Please consider whether any of the available MCP tools could help with this requ
                         query=query,
                         response=streamed_content,
                         provider=provider_name,
-                        model=model or provider.default_model
+                        model=provider.default_model
                     )
                 else:
                     with console.status(f"[yellow]Querying {provider_name}...[/yellow]"):
-                        response = await provider.query(enhanced_query, model=model)
+                        response = await provider.query(enhanced_query)
                     
                     if response.is_error:
                         console.print(f"[red]Error:[/red] {response.error}")
@@ -598,7 +605,7 @@ Please consider whether any of the available MCP tools could help with this requ
                             query=query,
                             response="",
                             provider=provider_name,
-                            model=model or "unknown",
+                            model=provider.default_model,
                             error=response.error
                         )
                     else:
@@ -683,39 +690,29 @@ Please consider whether any of the available MCP tools could help with this requ
             return 1, "", f"MCP error: {str(e)}"
     
     def _handle_collate(self, command: str) -> Tuple[int, str, str]:
-        """Handle multi-LLM collations."""
+        """Handle multi-LLM collations with new syntax: collate <provider1> <provider2> 'query'."""
         try:
             parts = shlex.split(command)
-            if len(parts) < 2:
-                return 1, "", "Usage: collate \"query\" [--providers p1 p2 ...]"
+            if len(parts) < 4:
+                return 1, "", "Usage: collate <provider1> <provider2> \"query\""
             
-            query = parts[1]
+            provider1 = parts[1]
+            provider2 = parts[2]
+            query = parts[3]
             
-            # Get default providers from environment, fallback to claude and openai
-            env_manager = get_env_manager()
-            default_provider = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
+            valid_providers = ['claude', 'openai', 'ollama', 'gemini']
             
-            # Default to the configured provider and one alternative for comparison
-            if default_provider == 'claude':
-                providers = ['claude', 'openai']
-            elif default_provider == 'openai':
-                providers = ['openai', 'claude']
-            elif default_provider == 'gemini':
-                providers = ['gemini', 'claude']
-            elif default_provider == 'ollama':
-                providers = ['ollama', 'claude']
-            else:
-                providers = ['claude', 'openai']  # fallback
+            # Validate providers
+            if provider1 not in valid_providers:
+                return 1, "", f"Unknown provider '{provider1}'. Available: {', '.join(valid_providers)}"
+            if provider2 not in valid_providers:
+                return 1, "", f"Unknown provider '{provider2}'. Available: {', '.join(valid_providers)}"
             
-            # Parse providers
-            if "--providers" in parts:
-                idx = parts.index("--providers")
-                providers = []
-                for i in range(idx + 1, len(parts)):
-                    if not parts[i].startswith("--"):
-                        providers.append(parts[i])
-                    else:
-                        break
+            providers = [provider1, provider2]
+            
+            # Warn if both providers are the same
+            if provider1 == provider2:
+                console.print(f"[yellow]Warning: Both providers are the same ({provider1})[/yellow]")
             
             async def run_comparison():
                 env_manager = get_env_manager()
@@ -739,6 +736,11 @@ Please consider whether any of the available MCP tools could help with this requ
                 provider_map = provider_instances
                 
                 console.print(f"[blue]Comparing across {len(providers)} providers...[/blue]")
+                console.print(f"[blue]Query:[/blue] {query}")
+                for provider_name in providers:
+                    if provider_name in provider_map:
+                        console.print(f"[blue]{provider_name.title()}:[/blue] {provider_map[provider_name].default_model} (default)")
+                console.print()
                 
                 tasks = []
                 for provider_name in providers:

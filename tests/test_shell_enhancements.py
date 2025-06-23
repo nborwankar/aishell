@@ -112,7 +112,8 @@ class TestShellEnhancements:
         # Test that commands with quoted strings are parsed correctly
         commands = [
             'llm "test query with spaces"',
-            'collate "another test query"',
+            'llm claude "test query with provider"',
+            'collate claude openai "another test query"',
             'mcp http://localhost:8000 "command with spaces"',
             'generate python "fibonacci function"'
         ]
@@ -139,7 +140,7 @@ class TestShellEnhancements:
         shell = IntelligentShell(nl_provider='mock')
         
         # Test collate with specific providers
-        exit_code, stdout, stderr = shell.execute_command('collate "test" --providers claude openai')
+        exit_code, stdout, stderr = shell.execute_command('collate claude openai "test"')
         assert exit_code == 0
     
     def test_provider_validation(self):
@@ -147,7 +148,7 @@ class TestShellEnhancements:
         shell = IntelligentShell(nl_provider='mock')
         
         # Test with invalid provider
-        exit_code, stdout, stderr = shell.execute_command('llm "test" --provider invalid')
+        exit_code, stdout, stderr = shell.execute_command('llm invalid "test"')
         assert exit_code == 1
         assert "Unknown provider" in stderr
     

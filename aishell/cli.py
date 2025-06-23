@@ -164,23 +164,22 @@ def shell(no_history, config, nl_provider, ollama_model, anthropic_api_key):
 
 
 @main.command()
+@click.argument('provider', required=False)
 @click.argument('query', nargs=-1, required=True)
-@click.option('--provider', '-p', type=click.Choice(['claude', 'openai', 'ollama', 'gemini']), help='LLM provider to use (defaults to DEFAULT_LLM_PROVIDER from .env)')
-@click.option('--model', '-m', help='Model to use (provider-specific)')
 @click.option('--temperature', '-t', default=0.7, help='Temperature for sampling')
 @click.option('--max-tokens', default=None, type=int, help='Maximum tokens to generate')
 @click.option('--stream', '-s', is_flag=True, help='Stream the response')
 @click.option('--api-key', envvar='LLM_API_KEY', help='API key for the provider')
 @click.option('--ollama-url', default='http://localhost:11434', help='Ollama API URL')
 @click.option('--openai-url', help='OpenAI-compatible API URL')
-def query(query, provider, model, temperature, max_tokens, stream, api_key, ollama_url, openai_url):
-    """Send a query to an LLM provider.
+def llm(provider, query, temperature, max_tokens, stream, api_key, ollama_url, openai_url):
+    """Send a query to a single LLM provider.
     
     Examples:
-        aishell query "What is the capital of France?"
-        aishell query "Explain quantum computing" --provider openai --model gpt-4
-        aishell query "Write a Python function" --provider ollama --stream
-        aishell query "Tell me a joke" --provider gemini
+        aishell llm claude "What is the capital of France?"
+        aishell llm openai "Explain quantum computing"
+        aishell llm "Hello" --stream  # Uses default provider
+        aishell llm gemini "Tell me a joke" --temperature 0.9
     """
     query_str = ' '.join(query)
     
@@ -218,11 +217,19 @@ Please consider whether any of the available MCP tools could help with this requ
         
         # Get default provider if none specified
         from aishell.utils import get_env_manager
+        env_manager = get_env_manager()
+        
         if provider is None:
-            env_manager = get_env_manager()
             provider_name = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
+            console.print(f"[blue]Using default provider: {provider_name}[/blue]")
         else:
             provider_name = provider
+            
+        # Validate provider
+        valid_providers = ['claude', 'openai', 'ollama', 'gemini']
+        if provider_name not in valid_providers:
+            console.print(f"[red]Error: Unknown provider '{provider_name}'. Available providers: {', '.join(valid_providers)}[/red]")
+            return
         
         # Get configuration from environment manager
         env_manager = get_env_manager()
@@ -245,10 +252,7 @@ Please consider whether any of the available MCP tools could help with this requ
             llm = GeminiLLMProvider(api_key=api_key or config.get('api_key'))
         
         console.print(f"[blue]Provider:[/blue] {provider_name}")
-        if model:
-            console.print(f"[blue]Model:[/blue] {model}")
-        else:
-            console.print(f"[blue]Model:[/blue] {llm.default_model} (default)")
+        console.print(f"[blue]Model:[/blue] {llm.default_model} (default)")
         console.print()
         
         if stream:
@@ -258,7 +262,6 @@ Please consider whether any of the available MCP tools could help with this requ
                 first_chunk = True
                 async for chunk in llm.stream_query(
                     enhanced_query,
-                    model=model,
                     temperature=temperature,
                     max_tokens=max_tokens
                 ):
@@ -274,14 +277,13 @@ Please consider whether any of the available MCP tools could help with this requ
                 query=query_str,
                 response=streamed_content,
                 provider=provider_name,
-                model=model or llm.default_model
+                model=llm.default_model
             )
         else:
             # Regular response
             with console.status("[yellow]Thinking...[/yellow]", spinner="dots"):
                 response = await llm.query(
                     enhanced_query,
-                    model=model,
                     temperature=temperature,
                     max_tokens=max_tokens
                 )
@@ -293,7 +295,7 @@ Please consider whether any of the available MCP tools could help with this requ
                     query=query_str,
                     response="",
                     provider=provider_name,
-                    model=model or "unknown",
+                    model=llm.default_model,
                     error=response.error
                 )
             else:
@@ -327,40 +329,56 @@ Please consider whether any of the available MCP tools could help with this requ
 
 
 @main.command(name='collate')
+@click.argument('provider1', required=True, type=click.Choice(['claude', 'openai', 'ollama', 'gemini']))
+@click.argument('provider2', required=True, type=click.Choice(['claude', 'openai', 'ollama', 'gemini']))
 @click.argument('query', nargs=-1, required=True)
-@click.option('--providers', '-p', multiple=True, type=click.Choice(['claude', 'openai', 'ollama', 'gemini']), help='LLM providers to use')
 @click.option('--temperature', '-t', default=0.7, help='Temperature for sampling')
 @click.option('--max-tokens', default=None, type=int, help='Maximum tokens to generate')
 @click.option('--table', '-T', is_flag=True, help='Show results in collation table')
-def collate(query, providers, temperature, max_tokens, table):
+def collate(provider1, provider2, query, temperature, max_tokens, table):
     """Send the same query to multiple LLM providers simultaneously.
     
     Examples:
-        aishell collate "What is 2+2?" -p claude -p openai -p ollama
-        aishell collate "Explain DNS" --providers gemini --providers claude --table
+        aishell collate claude openai "What is 2+2?"
+        aishell collate gemini claude "Explain DNS" --table
+        aishell collate claude openai "Compare these approaches" --temperature 0.9
     """
     query_str = ' '.join(query)
     
-    # Default to all providers if none specified
-    if not providers:
-        providers = ['claude', 'openai', 'ollama', 'gemini']
+    # Use the two specified providers
+    providers = [provider1, provider2]
+    
+    # Validate providers are different
+    if provider1 == provider2:
+        console.print(f"[yellow]Warning: Both providers are the same ({provider1})[/yellow]")
     
     async def run_multi_query():
         transcript = get_transcript_manager()
         
-        # Create provider instances
-        provider_map = {
-            'claude': ClaudeLLMProvider(),
-            'openai': OpenAILLMProvider(),
-            'ollama': OllamaLLMProvider(),
-            'gemini': GeminiLLMProvider(),
-        }
+        # Get environment configuration
+        from aishell.utils import get_env_manager
+        env_manager = get_env_manager()
+        
+        # Create provider instances with env config
+        provider_map = {}
+        for provider_name in providers:
+            config = env_manager.get_llm_config(provider_name)
+            if provider_name == 'claude':
+                provider_map[provider_name] = ClaudeLLMProvider(api_key=config.get('api_key'))
+            elif provider_name == 'openai':
+                provider_map[provider_name] = OpenAILLMProvider(api_key=config.get('api_key'))
+            elif provider_name == 'ollama':
+                provider_map[provider_name] = OllamaLLMProvider(base_url=config.get('base_url'))
+            elif provider_name == 'gemini':
+                provider_map[provider_name] = GeminiLLMProvider(api_key=config.get('api_key'))
         
         # Filter to requested providers
         active_providers = {name: provider_map[name] for name in providers}
         
         console.print(f"[blue]Querying {len(active_providers)} providers simultaneously...[/blue]")
         console.print(f"[blue]Query:[/blue] {query_str}")
+        for name, provider in active_providers.items():
+            console.print(f"[blue]{name.title()}:[/blue] {provider.default_model} (default)")
         console.print()
         
         # Run queries concurrently

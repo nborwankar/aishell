@@ -132,16 +132,18 @@ aishell spotlight "python tutorial"
 ### LLM Queries
 ```bash
 # Single LLM query (uses DEFAULT_LLM_PROVIDER from .env)
-aishell query "Explain quantum computing"
+aishell llm "Explain quantum computing"
 
 # Specify provider
-aishell query "Write a Python function" --provider openai --model gpt-4
+aishell llm openai "Write a Python function"
+aishell llm claude "Tell me a story"
 
 # Streaming response
-aishell query "Tell me a story" --provider claude --stream
+aishell llm gemini "Tell me a story" --stream
 
-# Multi-LLM collation
-aishell collate "What is the capital of France?" --providers claude openai gemini
+# Multi-LLM collation (compare two providers)
+aishell collate claude openai "What is the capital of France?"
+aishell collate gemini claude "Compare these approaches" --table
 ```
 
 ### MCP Server Interaction
@@ -163,8 +165,9 @@ aishell mcp-convert "use the search tool to find Python tutorials" --provider cl
 aishell shell
 
 # In shell - all commands available:
-llm "Hello world"                    # LLM query using default provider
-collate "Compare these approaches"   # Multi-LLM collation
+llm "Hello world"                           # LLM query using default provider
+llm openai "Write a function"               # LLM query with specific provider
+collate claude openai "Compare approaches"  # Multi-LLM collation
 mcp http://localhost:8000 ping      # MCP interaction
 generate python "fibonacci function" # Code generation
 env default openai                  # Change default provider
@@ -190,8 +193,8 @@ env reload                 # Reload .env file
 - `aishell search "query"` - Web search with multiple engines
 - `aishell find "pattern"` - File system search with advanced filters
 - `aishell spotlight "query"` - Quick Spotlight search
-- `aishell query "text"` - Single LLM query
-- `aishell collate "text"` - Multi-LLM comparison
+- `aishell llm [provider] "text"` - Single LLM query
+- `aishell collate <provider1> <provider2> "text"` - Multi-LLM comparison
 - `aishell mcp <server> <command>` - MCP server interaction
 - `aishell mcp-convert "text"` - Natural language to MCP translation
 - `aishell shell` - Start interactive shell

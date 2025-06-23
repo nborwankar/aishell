@@ -14,14 +14,13 @@ from aishell.mcp import MCPResponse
 class TestLLMIntegration:
     """Integration tests for LLM functionality."""
     
-    def test_query_command_help(self):
-        """Test query command help."""
+    def test_llm_command_help(self):
+        """Test llm command help."""
         runner = CliRunner()
-        result = runner.invoke(main, ['query', '--help'])
+        result = runner.invoke(main, ['llm', '--help'])
         
         assert result.exit_code == 0
-        assert 'Send a query to an LLM provider' in result.output
-        assert '--provider' in result.output
+        assert 'Send a query to a single LLM provider' in result.output
         assert '--stream' in result.output
     
     def test_collate_command_help(self):
@@ -31,11 +30,12 @@ class TestLLMIntegration:
         
         assert result.exit_code == 0
         assert 'Send the same query to multiple LLM providers' in result.output
-        assert '--providers' in result.output
+        assert '{claude|openai|ollama|gemini}' in result.output
+        assert 'QUERY' in result.output
     
     @patch('aishell.cli.ClaudeLLMProvider')
-    def test_query_command_execution(self, mock_claude_provider):
-        """Test query command execution."""
+    def test_llm_command_execution(self, mock_claude_provider):
+        """Test llm command execution."""
         # Mock the provider
         mock_provider_instance = AsyncMock()
         mock_provider_instance.query.return_value = LLMResponse(
@@ -49,8 +49,7 @@ class TestLLMIntegration:
         
         runner = CliRunner()
         result = runner.invoke(main, [
-            'query', 'Hello, how are you?',
-            '--provider', 'claude'
+            'llm', 'claude', 'Hello, how are you?'
         ])
         
         assert result.exit_code == 0
@@ -58,8 +57,8 @@ class TestLLMIntegration:
         # The actual content assertion might be tricky due to Rich formatting
     
     @patch('aishell.cli.OpenAILLMProvider')
-    def test_query_command_with_streaming(self, mock_openai_provider):
-        """Test query command with streaming."""
+    def test_llm_command_with_streaming(self, mock_openai_provider):
+        """Test llm command with streaming."""
         # Mock the provider for streaming
         mock_provider_instance = AsyncMock()
         
@@ -74,8 +73,7 @@ class TestLLMIntegration:
         
         runner = CliRunner()
         result = runner.invoke(main, [
-            'query', 'Hello',
-            '--provider', 'openai',
+            'llm', 'openai', 'Hello',
             '--stream'
         ])
         

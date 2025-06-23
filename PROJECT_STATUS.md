@@ -38,8 +38,8 @@ AIShell is a fully functional, professional-grade intelligent command line tool 
 - `aishell search` - Web search with multiple engines
 - `aishell find` - Advanced file system search
 - `aishell spotlight` - Quick macOS Spotlight search
-- `aishell query` - Single LLM queries
-- `aishell collate` - Multi-LLM comparison
+- `aishell llm [provider] "query"` - Single LLM queries
+- `aishell collate <provider1> <provider2> "query"` - Multi-LLM comparison
 - `aishell mcp` - MCP server interaction
 - `aishell mcp-convert` - Natural language to MCP translation
 - `aishell shell` - Interactive shell with all features
@@ -138,7 +138,7 @@ aishell/
 4. Use `aishell --help` for CLI or `aishell shell` for interactive mode
 
 ### Common Workflows
-- **Research**: `aishell search` → `aishell find` → `aishell query` for analysis
+- **Research**: `aishell search` → `aishell find` → `aishell llm` for analysis
 - **Development**: Interactive shell with `llm`, `generate`, and `env` commands
 - **Comparison**: `aishell collate` for multi-LLM perspectives
 - **Automation**: MCP integration for external tool communication
