@@ -6,12 +6,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="aishell",
     version="0.1.0",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Nitin Borwankar",
+    author_email="nborwankar@gmail.com",
     description="An intelligent command line tool with web search, shell capabilities, and LLM integration",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/aishell",
+    url="https://github.com/nborwankar/aishell",
+    license="MIT",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
