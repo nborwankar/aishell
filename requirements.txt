@@ -7,10 +7,10 @@ beautifulsoup4>=4.12.0
 lxml>=4.9.0
 aiohttp>=3.9.0  # For async HTTP requests (Ollama)
 
-# Optional dependencies for LLM providers
-# anthropic>=0.18.0         # Uncomment for Claude support
-# openai>=1.0.0            # Uncomment for OpenAI support
-# google-generativeai>=0.3.0  # Uncomment for Gemini support
+# LLM provider dependencies
+anthropic>=0.18.0         # For Claude support
+openai>=1.12.0            # For OpenAI support
+google-generativeai>=0.3.0  # For Gemini support
 
 # Development dependencies
 pytest>=7.4.0

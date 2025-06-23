@@ -64,7 +64,7 @@ cd aishell
 python -m venv venv
 source venv/bin/activate
 
-# Install dependencies
+# Install dependencies (includes all LLM providers)
 pip install -e .
 
 # Install Playwright browsers (for web search)

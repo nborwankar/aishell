@@ -33,6 +33,10 @@ setup(
         "playwright>=1.40.0",
         "beautifulsoup4>=4.12.0",
         "lxml>=4.9.0",
+        "aiohttp>=3.9.0",
+        "anthropic>=0.18.0",
+        "openai>=1.12.0",
+        "google-generativeai>=0.3.0",
     ],
     entry_points={
         "console_scripts": [
