@@ -204,6 +204,9 @@ class IntelligentShell:
             return self._handle_export(command)
         elif command == 'alias':
             return self._show_aliases()
+        elif command == 'help':
+            self._show_help()
+            return 0, "", ""
         elif command.startswith('llm') and (command == 'llm' or command.startswith('llm ')):
             return self._handle_llm(command)
         elif command.startswith('mcp') and (command == 'mcp' or command.startswith('mcp ')):
@@ -524,6 +527,9 @@ Please consider whether any of the available MCP tools could help with this requ
                 query = parts[2]
                 options_start = 3
                 console.print(f"[blue]Using provider: {provider_name}[/blue]")
+            elif len(parts) >= 3:
+                # Provider specified but invalid
+                return 1, "", f"Unknown provider: {parts[1]}. Use: {', '.join(valid_providers)}"
             else:
                 # llm "query" format (use default provider)
                 env_manager = get_env_manager()
