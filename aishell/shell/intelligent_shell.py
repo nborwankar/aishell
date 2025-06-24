@@ -559,14 +559,20 @@ Please consider whether any of the available MCP tools could help with this requ
             
             # Create provider with configuration from env
             if provider_name == 'claude':
-                provider = provider_map[provider_name](api_key=config.get('api_key'))
+                provider = provider_map[provider_name](
+                    api_key=config.get('api_key'),
+                    base_url=config.get('base_url')
+                )
             elif provider_name == 'openai':
                 provider = provider_map[provider_name](
                     api_key=config.get('api_key'),
                     base_url=config.get('base_url')
                 )
             elif provider_name == 'gemini':
-                provider = provider_map[provider_name](api_key=config.get('api_key'))
+                provider = provider_map[provider_name](
+                    api_key=config.get('api_key'),
+                    base_url=config.get('base_url')
+                )
             elif provider_name == 'ollama':
                 provider = provider_map[provider_name](base_url=config.get('base_url'))
             else:
@@ -722,14 +728,20 @@ Please consider whether any of the available MCP tools could help with this requ
                 for name in ['claude', 'openai', 'ollama', 'gemini']:
                     config = env_manager.get_llm_config(name)
                     if name == 'claude':
-                        provider_instances[name] = ClaudeLLMProvider(api_key=config.get('api_key'))
+                        provider_instances[name] = ClaudeLLMProvider(
+                            api_key=config.get('api_key'),
+                            base_url=config.get('base_url')
+                        )
                     elif name == 'openai':
                         provider_instances[name] = OpenAILLMProvider(
                             api_key=config.get('api_key'),
                             base_url=config.get('base_url')
                         )
                     elif name == 'gemini':
-                        provider_instances[name] = GeminiLLMProvider(api_key=config.get('api_key'))
+                        provider_instances[name] = GeminiLLMProvider(
+                            api_key=config.get('api_key'),
+                            base_url=config.get('base_url')
+                        )
                     elif name == 'ollama':
                         provider_instances[name] = OllamaLLMProvider(base_url=config.get('base_url'))
                 

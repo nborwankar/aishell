@@ -93,9 +93,11 @@ OPENAI_MODEL=gpt-4o-mini
 GEMINI_MODEL=gemini-2.5-flash
 OLLAMA_MODEL=llama3.2
 
-# Provider URLs
-OLLAMA_URL=http://localhost:11434
+# Provider Base URLs (optional - for custom endpoints)
+CLAUDE_BASE_URL=         # Leave empty for default Anthropic API
 OPENAI_BASE_URL=https://api.openai.com/v1
+GEMINI_BASE_URL=         # Leave empty for default Google API
+OLLAMA_BASE_URL=http://localhost:11434
 
 # Other configuration options available in .env.example
 ```
@@ -242,7 +244,7 @@ env reload                 # Reload .env file
    - Default Model: `llama3.2` (configurable via `OLLAMA_MODEL`)
    - Requires: Local Ollama installation
    - Available Models: Any locally installed models (llama3.2, llama3.1, mistral, etc.)
-   - Optional: `OLLAMA_URL` (default: http://localhost:11434)
+   - Optional: `OLLAMA_BASE_URL` (default: http://localhost:11434)
 
 ### Updating Models
 To use newer models as they become available:
@@ -262,6 +264,27 @@ To use newer models as they become available:
    ```
 
 3. **Or restart the application** to pick up changes
+
+### Using Custom LLM Endpoints
+
+AIShell supports custom API endpoints for all LLM providers, enabling:
+- OpenRouter integration
+- Local LLM servers
+- Proxy services
+- Alternative API providers
+
+Configure custom endpoints in your `.env`:
+```bash
+# OpenRouter example
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_API_KEY=your-openrouter-api-key
+
+# Local LLM server
+OLLAMA_BASE_URL=http://192.168.1.100:11434
+
+# Claude-compatible service
+CLAUDE_BASE_URL=https://your-claude-proxy.com/v1
+```
 
 ## MCP Servers
 

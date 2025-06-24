@@ -8,15 +8,17 @@ from ..base import LLMProvider, LLMResponse
 class ClaudeLLMProvider(LLMProvider):
     """Claude LLM provider using Anthropic API."""
     
-    def __init__(self, api_key: Optional[str] = None, **kwargs):
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None, **kwargs):
         """Initialize Claude provider.
         
         Args:
             api_key: Anthropic API key (or ANTHROPIC_API_KEY env var)
+            base_url: Optional base URL for API (for Claude-compatible services)
             **kwargs: Additional configuration
         """
         api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         super().__init__(api_key, **kwargs)
+        self.base_url = base_url or os.environ.get("CLAUDE_BASE_URL")
         self._client = None
     
     @property
@@ -40,7 +42,10 @@ class ClaudeLLMProvider(LLMProvider):
         if self._client is None:
             try:
                 import anthropic
-                self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
+                self._client = anthropic.AsyncAnthropic(
+                    api_key=self.api_key,
+                    base_url=self.base_url
+                )
             except ImportError:
                 raise ImportError(
                     "anthropic package not installed. "

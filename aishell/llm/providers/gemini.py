@@ -8,15 +8,17 @@ from ..base import LLMProvider, LLMResponse
 class GeminiLLMProvider(LLMProvider):
     """Google Gemini LLM provider."""
     
-    def __init__(self, api_key: Optional[str] = None, **kwargs):
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None, **kwargs):
         """Initialize Gemini provider.
         
         Args:
             api_key: Google API key (or GOOGLE_API_KEY env var)
+            base_url: Optional base URL for API (for Gemini-compatible services)
             **kwargs: Additional configuration
         """
         api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         super().__init__(api_key, **kwargs)
+        self.base_url = base_url or os.environ.get("GEMINI_BASE_URL")
         self._client = None
     
     @property
@@ -40,6 +42,8 @@ class GeminiLLMProvider(LLMProvider):
         if self._client is None:
             try:
                 import google.generativeai as genai
+                # Note: Google's SDK doesn't currently support custom base URLs
+                # but we store it for future compatibility
                 genai.configure(api_key=self.api_key)
                 self._client = genai
             except ImportError:

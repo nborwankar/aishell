@@ -240,7 +240,10 @@ Please consider whether any of the available MCP tools could help with this requ
         
         # Create the appropriate provider with env config
         if provider_name == 'claude':
-            llm = ClaudeLLMProvider(api_key=api_key or config.get('api_key'))
+            llm = ClaudeLLMProvider(
+                api_key=api_key or config.get('api_key'),
+                base_url=config.get('base_url')
+            )
         elif provider_name == 'openai':
             llm = OpenAILLMProvider(
                 api_key=api_key or config.get('api_key'),
@@ -249,7 +252,10 @@ Please consider whether any of the available MCP tools could help with this requ
         elif provider_name == 'ollama':
             llm = OllamaLLMProvider(base_url=ollama_url or config.get('base_url'))
         elif provider_name == 'gemini':
-            llm = GeminiLLMProvider(api_key=api_key or config.get('api_key'))
+            llm = GeminiLLMProvider(
+                api_key=api_key or config.get('api_key'),
+                base_url=config.get('base_url')
+            )
         
         console.print(f"[blue]Provider:[/blue] {provider_name}")
         console.print(f"[blue]Model:[/blue] {llm.default_model} (default)")
@@ -364,13 +370,22 @@ def collate(provider1, provider2, query, temperature, max_tokens, table):
         for provider_name in providers:
             config = env_manager.get_llm_config(provider_name)
             if provider_name == 'claude':
-                provider_map[provider_name] = ClaudeLLMProvider(api_key=config.get('api_key'))
+                provider_map[provider_name] = ClaudeLLMProvider(
+                    api_key=config.get('api_key'),
+                    base_url=config.get('base_url')
+                )
             elif provider_name == 'openai':
-                provider_map[provider_name] = OpenAILLMProvider(api_key=config.get('api_key'))
+                provider_map[provider_name] = OpenAILLMProvider(
+                    api_key=config.get('api_key'),
+                    base_url=config.get('base_url')
+                )
             elif provider_name == 'ollama':
                 provider_map[provider_name] = OllamaLLMProvider(base_url=config.get('base_url'))
             elif provider_name == 'gemini':
-                provider_map[provider_name] = GeminiLLMProvider(api_key=config.get('api_key'))
+                provider_map[provider_name] = GeminiLLMProvider(
+                    api_key=config.get('api_key'),
+                    base_url=config.get('base_url')
+                )
         
         # Filter to requested providers
         active_providers = {name: provider_map[name] for name in providers}

@@ -146,6 +146,7 @@ class EnvManager:
         configs = {
             'claude': {
                 'api_key': self.get_var('ANTHROPIC_API_KEY'),
+                'base_url': self.get_var('CLAUDE_BASE_URL'),
                 'model': self.get_var('CLAUDE_MODEL', 'claude-3-5-sonnet-20241022'),
                 'temperature': self.get_var('DEFAULT_TEMPERATURE', '0.7'),
                 'max_tokens': self.get_var('DEFAULT_MAX_TOKENS', '4096')
@@ -159,12 +160,13 @@ class EnvManager:
             },
             'gemini': {
                 'api_key': self.get_var('GOOGLE_API_KEY'),
+                'base_url': self.get_var('GEMINI_BASE_URL'),
                 'model': self.get_var('GEMINI_MODEL', 'gemini-1.5-flash'),
                 'temperature': self.get_var('DEFAULT_TEMPERATURE', '0.7'),
                 'max_tokens': self.get_var('DEFAULT_MAX_TOKENS', '4096')
             },
             'ollama': {
-                'base_url': self.get_var('OLLAMA_URL', 'http://localhost:11434'),
+                'base_url': self.get_var('OLLAMA_BASE_URL', 'http://localhost:11434'),
                 'model': self.get_var('OLLAMA_MODEL', 'llama3.2'),
                 'temperature': self.get_var('DEFAULT_TEMPERATURE', '0.7'),
                 'max_tokens': self.get_var('DEFAULT_MAX_TOKENS', '4096')
