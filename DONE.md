@@ -1,5 +1,45 @@
 # DONE - Development Log
 
+## OpenRouter Integration (Part A) - 2025-06-23
+
+### OpenRouter LLM Provider Implementation
+- **Created OpenRouter Provider**: New provider class that uses OpenAI-compatible API
+- **Unified Model Access**: Access to multiple LLM providers through single API key
+- **Model Metadata**: Includes provider info and context window sizes for each model
+- **Full Feature Support**: Query, streaming, usage tracking, and error handling
+
+#### Provider Implementation:
+- Created `aishell/llm/providers/openrouter.py` with full async support
+- Uses OpenAI SDK with custom headers for OpenRouter
+- Supports all major models: Claude, GPT-4, Gemini, Llama, Mistral, etc.
+- Includes model-specific metadata (context windows, original provider)
+
+#### Environment Configuration:
+- Added OpenRouter to `env_manager.py` configuration system
+- New environment variables:
+  - `OPENROUTER_API_KEY` - Required for authentication
+  - `OPENROUTER_BASE_URL` - Default: https://openrouter.ai/api/v1
+  - `OPENROUTER_MODEL` - Default: anthropic/claude-3.5-sonnet
+- Updated `.env.example` with OpenRouter configuration
+
+#### Integration Details:
+- Added to LLM module exports in `__init__.py` files
+- Integrated with existing provider infrastructure
+- Compatible with all existing LLM features
+- Created `test_openrouter.py` for provider verification
+
+#### Testing Script:
+- Validates API key configuration
+- Tests basic query functionality
+- Tests streaming responses
+- Displays model metadata and usage information
+
+### Configurable Base URLs Refactoring
+- **Unified URL Configuration**: All LLM providers now support custom base URLs
+- **Consistency Fix**: Standardized on `*_BASE_URL` naming (fixed OLLAMA_URL)
+- **Provider Updates**: Added base_url support to Claude and Gemini providers
+- **Documentation**: Added custom endpoint examples (OpenRouter, proxies, local servers)
+
 ## CLI Command Structure Refactoring - 2025-06-23
 
 ### New Command Syntax Implementation

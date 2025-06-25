@@ -29,6 +29,18 @@
 - [x] **LLM Dependencies**: Added all LLM provider packages as required dependencies
 - [x] **CLI Parameter Fix**: Fixed Click warning for duplicate -t parameter usage
 - [x] **CLI Command Refactoring**: New intuitive syntax - `aishell llm [provider] "query"` and `aishell collate <p1> <p2> "query"`
+- [x] **Base URL Configuration**: All LLM providers now support configurable base URLs for custom endpoints
+- [x] **OpenRouter Integration (Part A)**: Created OpenRouter provider class with full LLM subsystem integration
+
+--
+
+## Pending - OpenRouter Integration (Part B)
+- [ ] Add "openrouter" to the list of valid providers in CLI
+- [ ] Update llm command to accept openrouter as a provider
+- [ ] Update collate command to accept openrouter as a provider  
+- [ ] Update shell built-in commands to support openrouter
+- [ ] Update help text and documentation with openrouter examples
+- [ ] Test openrouter in both CLI and shell modes
 
 --
 
