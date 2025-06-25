@@ -6,6 +6,7 @@ from .providers import (
     OpenAILLMProvider,
     OllamaLLMProvider,
     GeminiLLMProvider,
+    OpenRouterLLMProvider,
 )
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "OpenAILLMProvider",
     "OllamaLLMProvider",
     "GeminiLLMProvider",
+    "OpenRouterLLMProvider",
 ]

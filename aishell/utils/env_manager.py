@@ -170,6 +170,13 @@ class EnvManager:
                 'model': self.get_var('OLLAMA_MODEL', 'llama3.2'),
                 'temperature': self.get_var('DEFAULT_TEMPERATURE', '0.7'),
                 'max_tokens': self.get_var('DEFAULT_MAX_TOKENS', '4096')
+            },
+            'openrouter': {
+                'api_key': self.get_var('OPENROUTER_API_KEY'),
+                'base_url': self.get_var('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
+                'model': self.get_var('OPENROUTER_MODEL', 'anthropic/claude-3.5-sonnet'),
+                'temperature': self.get_var('DEFAULT_TEMPERATURE', '0.7'),
+                'max_tokens': self.get_var('DEFAULT_MAX_TOKENS', '4096')
             }
         }
         
