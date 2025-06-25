@@ -8,9 +8,9 @@ lxml>=4.9.0
 aiohttp>=3.9.0  # For async HTTP requests (Ollama)
 
 # LLM provider dependencies
-anthropic>=0.18.0         # For Claude support
-openai>=1.12.0            # For OpenAI support
-google-generativeai>=0.3.0  # For Gemini support
+anthropic>=0.16.0         # For Claude support
+openai>=1.0.0             # For OpenAI support
+google-generativeai>=0.1.0  # For Gemini support
 
 # Development dependencies
 pytest>=7.4.0

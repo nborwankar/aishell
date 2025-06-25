@@ -34,9 +34,9 @@ setup(
         "beautifulsoup4>=4.12.0",
         "lxml>=4.9.0",
         "aiohttp>=3.9.0",
-        "anthropic>=0.18.0",
-        "openai>=1.12.0",
-        "google-generativeai>=0.3.0",
+        "anthropic>=0.16.0",
+        "openai>=1.0.0",
+        "google-generativeai>=0.1.0",
     ],
     entry_points={
         "console_scripts": [
