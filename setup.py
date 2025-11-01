@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="aishell",
-    version="0.3.1",
+    version="0.3.2",
     author="Nitin Borwankar",
     author_email="nborwankar@gmail.com",
     description="An intelligent command line tool with web search, shell capabilities, and LLM integration",
