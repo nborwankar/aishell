@@ -30,10 +30,11 @@ class MacOSFileSearcher:
     def _check_spotlight(self) -> bool:
         """Check if Spotlight (mdfind) is available."""
         try:
-            subprocess.run(['mdfind', '--help'], 
-                         capture_output=True, check=True)
-            return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
+            # mdfind --help exits with code 5, so don't check exit code
+            result = subprocess.run(['which', 'mdfind'],
+                                  capture_output=True, text=True, timeout=2)
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
     
     def search_files(
@@ -362,8 +363,10 @@ class MacOSFileSearcher:
         if not self.spotlight_available:
             console.print("[yellow]Spotlight not available, falling back to find[/yellow]")
             return self._search_with_find(query, ".", None, None, None, None, True, max_results)
-        
-        cmd = ['mdfind', '-limit', str(max_results), query]
+
+        # Use -name flag to search by filename only (avoids hanging on plain text queries)
+        # Result limiting is handled by _execute_search_command
+        cmd = ['mdfind', '-name', query]
         return self._execute_search_command(cmd, max_results)
 
 
