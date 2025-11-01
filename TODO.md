@@ -48,9 +48,27 @@
 ## Dependency Management ✅ COMPLETED
 - [x] **Version Compatibility Fixes**: Updated package requirements for better cross-platform compatibility
   - [x] `google-generativeai`: >=0.3.0 → >=0.1.0
-  - [x] `anthropic`: >=0.18.0 → >=0.16.0  
+  - [x] `anthropic`: >=0.18.0 → >=0.16.0
   - [x] `openai`: >=1.12.0 → >=1.0.0
 - [x] **Test Suite**: All 109 tests passing (up from 102 passed, 1 failed)
+
+## Web Search Functionality Fix ✅ COMPLETED
+- [x] **Problem**: Google web search blocked by bot detection on headless browsers
+- [x] **Investigation**: Tested multiple search engines (GitHub, HN, Reddit, Wikipedia, MDN)
+- [x] **Primary Solution - HackerNews**:
+  - [x] Implemented search_hackernews() using Algolia interface
+  - [x] Identified correct CSS selectors (Story_container, Story_title, Story_meta)
+  - [x] Full async/await support with proper JavaScript loading (networkidle)
+  - [x] Set HackerNews as default search engine
+- [x] **Secondary Solution - Stealth Mode**:
+  - [x] Added playwright-stealth package (optional with graceful fallback)
+  - [x] Applied stealth transformations to browser context
+  - [x] Updated macOS user agent string
+- [x] **Testing & Verification**:
+  - [x] Direct Python testing: Returns 30+ accurate results
+  - [x] CLI integration: Full end-to-end testing successful
+  - [x] Default search now works reliably
+  - [x] Zero breaking changes
 
 --
 
