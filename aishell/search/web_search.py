@@ -8,6 +8,14 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
+# Try to import stealth mode (optional, for bypassing bot detection)
+try:
+    from playwright_stealth import stealth_async
+    STEALTH_AVAILABLE = True
+except ImportError:
+    STEALTH_AVAILABLE = False
+    stealth_async = None
+
 console = Console()
 
 
@@ -22,8 +30,14 @@ class WebSearcher:
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.chromium.launch(headless=self.headless)
         self.context = await self.browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
+
+        # Apply stealth mode if available (helps bypass bot detection on Google, etc.)
+        if STEALTH_AVAILABLE:
+            await stealth_async(self.context)
+            console.print("[dim]Stealth mode enabled[/dim]")
+
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -138,7 +152,65 @@ class WebSearcher:
             console.print(f"[red]Error during search: {str(e)}[/red]")
         finally:
             await page.close()
-        
+
+        return results
+
+    async def search_hackernews(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Search Hacker News and return results.
+
+        Uses Algolia interface which doesn't have strict bot detection like Google.
+        """
+        page = await self.context.new_page()
+        results = []
+
+        try:
+            # Navigate to Hacker News Algolia search interface
+            search_url = f"https://hn.algolia.com/?q={quote_plus(query)}"
+            await page.goto(search_url, wait_until="networkidle", timeout=15000)
+
+            # Get page content
+            content = await page.content()
+            soup = BeautifulSoup(content, 'html.parser')
+
+            # Find story containers in Algolia interface
+            # Each story has class 'Story_container' with title and metadata divs inside
+            story_containers = soup.find_all('div', class_='Story_container')
+
+            for story in story_containers[:limit]:
+                try:
+                    # Extract title and URL from Story_title div
+                    title_div = story.find('div', class_='Story_title')
+                    if not title_div:
+                        continue
+
+                    link_elem = title_div.find('a')
+                    if not link_elem:
+                        continue
+
+                    title = link_elem.get_text(strip=True)
+                    url = link_elem.get('href', '')
+
+                    # Extract metadata from Story_meta div
+                    meta_div = story.find('div', class_='Story_meta')
+                    snippet = ""
+                    if meta_div:
+                        snippet = meta_div.get_text(strip=True)
+
+                    if title and url:
+                        results.append({
+                            'title': title,
+                            'url': url,
+                            'snippet': snippet
+                        })
+                except Exception as e:
+                    # Skip problematic results
+                    continue
+
+        except Exception as e:
+            console.print(f"[red]Error during Hacker News search: {str(e)}[/red]")
+        finally:
+            await page.close()
+
         return results
 
 
@@ -188,8 +260,11 @@ async def perform_web_search(query: str, limit: int = 10, engine: str = "google"
                 results = await searcher.search_google(query, limit)
             elif engine.lower() == "duckduckgo":
                 results = await searcher.search_duckduckgo(query, limit)
+            elif engine.lower() == "hackernews" or engine.lower() == "hn":
+                results = await searcher.search_hackernews(query, limit)
             else:
                 console.print(f"[red]Unknown search engine: {engine}[/red]")
+                console.print("[yellow]Available engines: google, duckduckgo, hackernews[/yellow]")
                 return
         
         display_results(results, query)

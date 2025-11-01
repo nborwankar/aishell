@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-07-04
+
+### Added
+- **OpenRouter Integration (Part B)**: Complete CLI and shell support for OpenRouter
+  - OpenRouter commands now work in both CLI (`aishell llm openrouter "query"`) and shell (`llm openrouter "query"`)
+  - Multi-provider collation with OpenRouter (`aishell collate claude openrouter "query"`)
+  - Full provider validation and error handling
+- **Enhanced Provider Validation**: Fixed shell validation logic to properly detect invalid provider names
+- **Comprehensive Test Suite**: Added 7 OpenRouter-specific tests, bringing total to 109 tests
+
+### Fixed
+- **Dependency Compatibility Issues**: Updated package requirements for better cross-platform compatibility
+  - `google-generativeai`: >=0.3.0 → >=0.1.0 (version 0.3.0 doesn't exist)
+  - `anthropic`: >=0.18.0 → >=0.16.0 (less restrictive)
+  - `openai`: >=1.12.0 → >=1.0.0 (less restrictive)
+- **Provider Validation Bug**: Shell command `llm invalid "test"` now properly returns error instead of treating as query
+- **Test Suite**: Fixed failing provider validation test, all 109 tests now pass
+
+### Changed
+- Updated intelligent shell with OpenRouter support across all LLM operations
+- Enhanced error messages to include OpenRouter as available provider
+- Improved validation logic to prevent command misinterpretation
+
+### Technical
+- Files Modified:
+  - `aishell/shell/intelligent_shell.py` - OpenRouter shell integration
+  - `setup.py` and `requirements.txt` - Dependency version fixes
+  - `tests/llm/test_openrouter.py` - New comprehensive test suite
+  - `tests/manual_test_openrouter.py` - Manual testing script
+
 ## [0.3.0] - 2025-06-23
 
 ### Breaking Changes

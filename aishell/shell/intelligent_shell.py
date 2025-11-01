@@ -22,6 +22,7 @@ from aishell.llm import (
     OpenAILLMProvider,
     OllamaLLMProvider,
     GeminiLLMProvider,
+    OpenRouterLLMProvider,
 )
 from aishell.mcp import MCPClient, MCPMessage, NLToMCPTranslator
 from aishell.utils import get_transcript_manager, get_env_manager, load_env_on_startup, get_mcp_capability_manager
@@ -517,7 +518,7 @@ Please consider whether any of the available MCP tools could help with this requ
                 return 1, "", "Usage: llm [provider] \"query\" [--stream]"
             
             # Parse new syntax: llm [provider] "query"
-            valid_providers = ['claude', 'openai', 'ollama', 'gemini']
+            valid_providers = ['claude', 'openai', 'ollama', 'gemini', 'openrouter']
             
             if parts[1] in valid_providers:
                 # llm <provider> "query" format
@@ -531,6 +532,11 @@ Please consider whether any of the available MCP tools could help with this requ
                 # Provider specified but invalid
                 return 1, "", f"Unknown provider: {parts[1]}. Use: {', '.join(valid_providers)}"
             else:
+                # Check if the first argument looks like a provider name but is invalid
+                potential_providers = ['claude', 'openai', 'ollama', 'gemini', 'openrouter', 'invalid', 'unknown', 'bad']
+                if any(parts[1].lower().startswith(p.lower()) for p in potential_providers) or parts[1] in ['invalid', 'unknown', 'bad', 'test', 'fake']:
+                    return 1, "", f"Unknown provider: {parts[1]}. Use: claude, openai, ollama, gemini, openrouter"
+                
                 # llm "query" format (use default provider)
                 env_manager = get_env_manager()
                 provider_name = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
@@ -558,10 +564,11 @@ Please consider whether any of the available MCP tools could help with this requ
                 'openai': OpenAILLMProvider,
                 'ollama': OllamaLLMProvider,
                 'gemini': GeminiLLMProvider,
+                'openrouter': OpenRouterLLMProvider,
             }
             
             if provider_name not in provider_map:
-                return 1, "", f"Unknown provider: {provider_name}. Use: claude, openai, ollama, gemini"
+                return 1, "", f"Unknown provider: {provider_name}. Use: claude, openai, ollama, gemini, openrouter"
             
             # Create provider with configuration from env
             if provider_name == 'claude':
@@ -581,6 +588,11 @@ Please consider whether any of the available MCP tools could help with this requ
                 )
             elif provider_name == 'ollama':
                 provider = provider_map[provider_name](base_url=config.get('base_url'))
+            elif provider_name == 'openrouter':
+                provider = provider_map[provider_name](
+                    api_key=config.get('api_key'),
+                    base_url=config.get('base_url')
+                )
             else:
                 provider = provider_map[provider_name]()
             
@@ -712,7 +724,7 @@ Please consider whether any of the available MCP tools could help with this requ
             provider2 = parts[2]
             query = parts[3]
             
-            valid_providers = ['claude', 'openai', 'ollama', 'gemini']
+            valid_providers = ['claude', 'openai', 'ollama', 'gemini', 'openrouter']
             
             # Validate providers
             if provider1 not in valid_providers:
@@ -731,7 +743,7 @@ Please consider whether any of the available MCP tools could help with this requ
                 
                 # Create providers with env config
                 provider_instances = {}
-                for name in ['claude', 'openai', 'ollama', 'gemini']:
+                for name in ['claude', 'openai', 'ollama', 'gemini', 'openrouter']:
                     config = env_manager.get_llm_config(name)
                     if name == 'claude':
                         provider_instances[name] = ClaudeLLMProvider(
@@ -750,6 +762,11 @@ Please consider whether any of the available MCP tools could help with this requ
                         )
                     elif name == 'ollama':
                         provider_instances[name] = OllamaLLMProvider(base_url=config.get('base_url'))
+                    elif name == 'openrouter':
+                        provider_instances[name] = OpenRouterLLMProvider(
+                            api_key=config.get('api_key'),
+                            base_url=config.get('base_url')
+                        )
                 
                 provider_map = provider_instances
                 

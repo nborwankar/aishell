@@ -6,6 +6,7 @@ playwright>=1.40.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 aiohttp>=3.9.0  # For async HTTP requests (Ollama)
+playwright-stealth>=1.0.0  # Optional: For bypassing bot detection on Google/DuckDuckGo
 
 # LLM provider dependencies
 anthropic>=0.16.0         # For Claude support

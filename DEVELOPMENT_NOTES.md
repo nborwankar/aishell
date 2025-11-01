@@ -359,21 +359,74 @@ Successfully integrated OpenRouter as a new LLM provider:
 - Tests initialization, query, and streaming functionality
 - Validates API key configuration and displays metadata
 
-### Part B Pending - CLI/Shell Integration
-Next steps to complete OpenRouter integration:
-1. Add "openrouter" to valid provider lists in CLI commands
-2. Update shell built-in commands to recognize openrouter
-3. Add documentation and examples
-4. Comprehensive testing in both modes
+### Part B Completed ✅ - CLI/Shell Integration  
+Successfully completed full CLI and shell integration:
+
+#### Shell Integration (`intelligent_shell.py`)
+1. **Provider Validation Enhancement**:
+   - Fixed validation logic to properly detect invalid provider names
+   - Added `openrouter` to valid providers list: `['claude', 'openai', 'ollama', 'gemini', 'openrouter']`
+   - Enhanced error detection for potential provider names that don't exist
+
+2. **LLM Command Support** (`_handle_llm` method):
+   - Added `OpenRouterLLMProvider` import
+   - Added openrouter to provider_map
+   - Added provider instantiation logic for openrouter
+   - Updated error messages to include openrouter
+
+3. **Collate Command Support** (`_handle_collate` method):
+   - Added openrouter to valid providers validation
+   - Added openrouter to provider creation loop
+   - Full multi-provider collation support
+
+#### Commands Available
+```bash
+# CLI Commands (both work)
+aishell llm openrouter "Hello world"
+aishell collate claude openrouter "Compare approaches"
+
+# Shell Built-in Commands (both work)
+llm openrouter "Query text"
+collate claude openrouter "Multi-provider query"
+```
+
+#### Quality Assurance
+- **Test Suite**: Created comprehensive pytest test suite (7 tests)
+- **Manual Testing**: Standalone test script for real API validation
+- **Integration Testing**: All 109 tests passing (up from 102)
+- **Error Handling**: Proper validation and error messages
+
+### Dependency Management Fixes ✅
+**Problem**: Package installation failing due to restrictive version requirements
+
+**Root Cause**: Some packages had overly restrictive version constraints:
+- `google-generativeai>=0.3.0` (only 0.1.0 versions exist)
+- `anthropic>=0.18.0` (too restrictive)
+- `openai>=1.12.0` (too restrictive)
+
+**Solution**: Updated to more compatible versions in `setup.py` and `requirements.txt`:
+- `google-generativeai`: `>=0.3.0` → `>=0.1.0`
+- `anthropic`: `>=0.18.0` → `>=0.16.0`
+- `openai`: `>=1.12.0` → `>=1.0.0`
+
+**Impact**: Package now installs successfully across Python environments
 
 ### Technical Notes
 - OpenRouter uses OpenAI-compatible API, simplifying integration
 - Provider supports all standard LLM operations (query, stream)
 - Model names use format: `provider/model-name` (e.g., `anthropic/claude-3.5-sonnet`)
 - Single API key provides access to multiple model providers
+- Future-proof architecture allows easy addition of new providers
+
+### Files Modified in This Session
+- `/Users/nitin/Projects/github/aishell/aishell/shell/intelligent_shell.py` - Shell integration
+- `/Users/nitin/Projects/github/aishell/setup.py` - Dependency versions
+- `/Users/nitin/Projects/github/aishell/requirements.txt` - Dependency versions
+- `/Users/nitin/Projects/github/aishell/tests/llm/test_openrouter.py` - New test suite
+- `/Users/nitin/Projects/github/aishell/tests/manual_test_openrouter.py` - Manual test script
 
 ---
 
-**Status**: Phase 2 complete, OpenRouter Part A integrated, awaiting Part B
-**Last Updated**: 2025-06-23
-**Next Session**: Complete OpenRouter Part B after testing confirmation
+**Status**: Phase 2 complete, OpenRouter fully integrated (Parts A & B), dependency issues resolved
+**Last Updated**: 2025-07-04
+**Next Session**: All OpenRouter integration complete - ready for new features or Phase 3

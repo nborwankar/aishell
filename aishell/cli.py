@@ -35,7 +35,7 @@ def main(ctx):
 @main.command()
 @click.argument('query', nargs=-1, required=True)
 @click.option('--limit', '-l', default=10, help='Number of results to return')
-@click.option('--engine', '-e', default='google', type=click.Choice(['google', 'duckduckgo']), help='Search engine to use')
+@click.option('--engine', '-e', default='hackernews', type=click.Choice(['google', 'duckduckgo', 'hackernews']), help='Search engine to use')
 @click.option('--show-browser', '-s', is_flag=True, help='Show browser window (disable headless mode)')
 def search(query, limit, engine, show_browser):
     """Web search from the command line using Playwright and headless Chrome."""
