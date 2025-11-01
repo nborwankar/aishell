@@ -40,11 +40,16 @@
 - **Package**: `playwright-stealth>=1.0.0`
 - **Integration**:
   - Added optional import with graceful fallback in `web_search.py:11-17`
+  - Correctly uses `Stealth` class with `apply_stealth_async()` API
   - Applied to browser context in `__aenter__` method if available
   - No breaking changes if package not installed
   - Prints `[dim]Stealth mode enabled[/dim]` when active
-- **Purpose**: Helps bypass bot detection on Google/DuckDuckGo for future improvements
-- **Testing**: ✅ Package installed and loaded without errors
+- **Purpose**: Helps bypass moderate bot detection on sites with reasonable defenses
+- **Testing Results**:
+  - ✅ Wikipedia: Works with and without stealth (both succeed)
+  - ✅ MDN: WITHOUT stealth times out, WITH stealth works (proven benefit)
+  - ❌ Google: Cannot bypass (nor should we try - ethical/ToS issue)
+- **Honest Assessment**: Stealth mode provides real value for sites with moderate bot detection, but won't defeat aggressive defenses like Google's
 
 #### 3. CLI Changes
 - **File**: `aishell/cli.py`

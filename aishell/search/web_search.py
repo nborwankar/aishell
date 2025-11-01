@@ -10,11 +10,11 @@ from rich.panel import Panel
 
 # Try to import stealth mode (optional, for bypassing bot detection)
 try:
-    from playwright_stealth import stealth_async
+    from playwright_stealth import Stealth
     STEALTH_AVAILABLE = True
 except ImportError:
     STEALTH_AVAILABLE = False
-    stealth_async = None
+    Stealth = None
 
 console = Console()
 
@@ -33,9 +33,12 @@ class WebSearcher:
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
 
-        # Apply stealth mode if available (helps bypass bot detection on Google, etc.)
-        if STEALTH_AVAILABLE:
-            await stealth_async(self.context)
+        # Apply stealth mode if available (helps bypass moderate bot detection)
+        # Tested: Works on Wikipedia and MDN (successfully bypasses moderate detection)
+        # Limitation: Cannot bypass Google's aggressive detection (and shouldn't try)
+        if STEALTH_AVAILABLE and Stealth:
+            stealth = Stealth()
+            await stealth.apply_stealth_async(self.context)
             console.print("[dim]Stealth mode enabled[/dim]")
 
         return self
