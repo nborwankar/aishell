@@ -31,7 +31,7 @@ class GeminiLLMProvider(LLMProvider):
         """Return the default model."""
         from aishell.utils import get_env_manager
         env_manager = get_env_manager()
-        return env_manager.get_var('GEMINI_MODEL', 'gemini-1.5-flash')
+        return env_manager.get_var('GEMINI_MODEL', 'gemini-1.5-flash') or 'gemini-1.5-flash'
     
     def validate_config(self) -> bool:
         """Validate the provider configuration."""
@@ -74,24 +74,24 @@ class GeminiLLMProvider(LLMProvider):
         try:
             genai = self._get_client()
             model_name = model or self.default_model
-            
+
             # Get the model
-            model = genai.GenerativeModel(model_name)
-            
+            gemini_model = genai.GenerativeModel(model_name)
+
             # Configure generation parameters
             generation_config = genai.types.GenerationConfig(
                 temperature=temperature,
                 max_output_tokens=max_tokens,
             )
-            
+
             # Add any additional parameters
             for key, value in kwargs.items():
                 if hasattr(generation_config, key):
                     setattr(generation_config, key, value)
-            
+
             if stream:
                 # Streaming response
-                response = await model.generate_content_async(
+                response = await gemini_model.generate_content_async(
                     prompt,
                     generation_config=generation_config,
                     stream=True
@@ -113,11 +113,11 @@ class GeminiLLMProvider(LLMProvider):
                     }
             else:
                 # Non-streaming response
-                response = await model.generate_content_async(
+                response = await gemini_model.generate_content_async(
                     prompt,
                     generation_config=generation_config
                 )
-                
+
                 content = response.text
                 
                 # Extract usage information if available
@@ -165,22 +165,22 @@ class GeminiLLMProvider(LLMProvider):
         try:
             genai = self._get_client()
             model_name = model or self.default_model
-            
+
             # Get the model
-            model = genai.GenerativeModel(model_name)
-            
+            gemini_model = genai.GenerativeModel(model_name)
+
             # Configure generation parameters
             generation_config = genai.types.GenerationConfig(
                 temperature=temperature,
                 max_output_tokens=max_tokens,
             )
-            
+
             for key, value in kwargs.items():
                 if hasattr(generation_config, key):
                     setattr(generation_config, key, value)
-            
+
             # Stream the response
-            response = await model.generate_content_async(
+            response = await gemini_model.generate_content_async(
                 prompt,
                 generation_config=generation_config,
                 stream=True

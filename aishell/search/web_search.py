@@ -1,8 +1,8 @@
 import asyncio
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from urllib.parse import quote_plus
 
-from playwright.async_api import async_playwright, Page
+from playwright.async_api import async_playwright, Page, Browser, BrowserContext, Playwright
 from bs4 import BeautifulSoup
 from rich.console import Console
 from rich.table import Table
@@ -12,21 +12,21 @@ console = Console()
 
 
 class WebSearcher:
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True) -> None:
         self.headless = headless
-        self.browser = None
-        self.context = None
-        self.playwright = None
-    
-    async def __aenter__(self):
+        self.browser: Optional[Browser] = None
+        self.context: Optional[BrowserContext] = None
+        self.playwright: Optional[Playwright] = None
+
+    async def __aenter__(self) -> "WebSearcher":
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.chromium.launch(headless=self.headless)
         self.context = await self.browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self.context:
             await self.context.close()
         if self.browser:
@@ -36,6 +36,7 @@ class WebSearcher:
     
     async def search_google(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Search Google and return results."""
+        assert self.context is not None, "WebSearcher must be used as a context manager"
         page = await self.context.new_page()
         results = []
         
@@ -90,6 +91,7 @@ class WebSearcher:
     
     async def search_duckduckgo(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Search DuckDuckGo and return results."""
+        assert self.context is not None, "WebSearcher must be used as a context manager"
         page = await self.context.new_page()
         results = []
         
@@ -142,7 +144,7 @@ class WebSearcher:
         return results
 
 
-def display_results(results: List[Dict[str, Any]], query: str):
+def display_results(results: List[Dict[str, Any]], query: str) -> None:
     """Display search results in a formatted table."""
     if not results:
         console.print("[yellow]No results found.[/yellow]")
@@ -178,7 +180,7 @@ def display_results(results: List[Dict[str, Any]], query: str):
         console.print(panel)
 
 
-async def perform_web_search(query: str, limit: int = 10, engine: str = "google", headless: bool = True):
+async def perform_web_search(query: str, limit: int = 10, engine: str = "google", headless: bool = True) -> None:
     """Perform a web search using Playwright and headless Chrome."""
     async with WebSearcher(headless=headless) as searcher:
         console.print(f"[blue]Searching {engine.capitalize()} for:[/blue] {query}")

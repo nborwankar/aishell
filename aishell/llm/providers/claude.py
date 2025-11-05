@@ -31,7 +31,7 @@ class ClaudeLLMProvider(LLMProvider):
         """Return the default model."""
         from aishell.utils import get_env_manager
         env_manager = get_env_manager()
-        return env_manager.get_var('CLAUDE_MODEL', 'claude-3-5-sonnet-20241022')
+        return env_manager.get_var('CLAUDE_MODEL', 'claude-3-5-sonnet-20241022') or 'claude-3-5-sonnet-20241022'
     
     def validate_config(self) -> bool:
         """Validate the provider configuration."""
@@ -89,11 +89,11 @@ class ClaudeLLMProvider(LLMProvider):
             if stream:
                 # For streaming, we'll collect the full response
                 content = ""
-                async with client.messages.stream(**params) as stream:
-                    async for text in stream.text_stream:
+                async with client.messages.stream(**params) as message_stream:
+                    async for text in message_stream.text_stream:
                         content += text
-                
-                message = await stream.get_final_message()
+
+                message = await message_stream.get_final_message()
                 usage = {
                     "input_tokens": message.usage.input_tokens,
                     "output_tokens": message.usage.output_tokens,

@@ -30,7 +30,7 @@ class OllamaLLMProvider(LLMProvider):
         """Return the default model."""
         from aishell.utils import get_env_manager
         env_manager = get_env_manager()
-        return env_manager.get_var('OLLAMA_MODEL', 'llama3.2')
+        return env_manager.get_var('OLLAMA_MODEL', 'llama3.2') or 'llama3.2'
     
     def validate_config(self) -> bool:
         """Validate the provider configuration."""
@@ -73,7 +73,7 @@ class OllamaLLMProvider(LLMProvider):
                 )
             
             # Prepare the request
-            data = {
+            data: Dict[str, Any] = {
                 "model": model,
                 "prompt": prompt,
                 "stream": stream,
@@ -185,8 +185,8 @@ class OllamaLLMProvider(LLMProvider):
             if not await self._check_model_exists(model):
                 yield f"Error: Model '{model}' not found. Pull it with: ollama pull {model}"
                 return
-            
-            data = {
+
+            data: Dict[str, Any] = {
                 "model": model,
                 "prompt": prompt,
                 "stream": True,

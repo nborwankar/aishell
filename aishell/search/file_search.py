@@ -172,7 +172,7 @@ class MacOSFileSearcher:
         content_pattern: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Execute search command and process results."""
-        results = []
+        results: List[Dict[str, Any]] = []
         
         try:
             with Progress(
@@ -369,11 +369,12 @@ class MacOSFileSearcher:
 
 def format_size(size: int) -> str:
     """Format file size in human-readable format."""
+    size_float = float(size)
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size < 1024.0:
-            return f"{size:.1f} {unit}"
-        size /= 1024.0
-    return f"{size:.1f} PB"
+        if size_float < 1024.0:
+            return f"{size_float:.1f} {unit}"
+        size_float /= 1024.0
+    return f"{size_float:.1f} PB"
 
 
 def format_date(date: datetime) -> str:

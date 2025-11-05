@@ -31,7 +31,7 @@ class OpenAILLMProvider(LLMProvider):
         """Return the default model."""
         from aishell.utils import get_env_manager
         env_manager = get_env_manager()
-        return env_manager.get_var('OPENAI_MODEL', 'gpt-4o-mini')
+        return env_manager.get_var('OPENAI_MODEL', 'gpt-4o-mini') or 'gpt-4o-mini'
     
     def validate_config(self) -> bool:
         """Validate the provider configuration."""

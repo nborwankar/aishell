@@ -85,7 +85,7 @@ class CommandSuggester:
     
     def suggest_completion(self, partial_command: str) -> List[str]:
         """Suggest command completions based on partial input."""
-        suggestions = []
+        suggestions: List[str] = []
         parts = partial_command.split()
         
         if not parts:
@@ -395,15 +395,16 @@ class IntelligentShell:
     
     def _process_nl_command(self, nl_input: str):
         """Process natural language command."""
+        assert self.nl_converter is not None, "NL converter must be available"
         console.print(f"[dim]Converting: {nl_input}[/dim]")
-        
+
         # Get context for conversion
         context = {
             'cwd': str(self.current_dir),
             'os': platform.system(),
             'shell': 'bash',  # We're simulating bash
         }
-        
+
         with console.status("[bold green]Thinking..."):
             command = self.nl_converter.convert(nl_input, context)
         
@@ -533,7 +534,7 @@ Please consider whether any of the available MCP tools could help with this requ
             else:
                 # llm "query" format (use default provider)
                 env_manager = get_env_manager()
-                provider_name = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude')
+                provider_name = env_manager.get_var('DEFAULT_LLM_PROVIDER', 'claude') or 'claude'
                 query = parts[1]
                 options_start = 2
                 console.print(f"[blue]Using default provider: {provider_name}[/blue]")
@@ -1012,8 +1013,8 @@ Examples:
                 table = Table(title="Available MCP Server Types", show_header=True)
                 table.add_column("Category", style="cyan")
                 table.add_column("Servers", style="white")
-                
-                categories = {
+
+                categories: Dict[str, List[str]] = {
                     "Database": ["postgres", "sqlite", "mysql"],
                     "Version Control": ["github", "gitlab"],
                     "Atlassian": ["jira", "atlassian"],
@@ -1022,9 +1023,9 @@ Examples:
                     "Cloud": ["aws", "gcp"],
                     "Custom": ["custom_1", "custom_2"]
                 }
-                
-                for category, servers in categories.items():
-                    table.add_row(category, ", ".join(servers))
+
+                for category, server_list in categories.items():
+                    table.add_row(category, ", ".join(server_list))
                 
                 console.print(table)
                 console.print("\n[dim]Configure in .env as MCP_<NAME>_SERVER=<command>[/dim]")

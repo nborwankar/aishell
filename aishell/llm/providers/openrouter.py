@@ -32,7 +32,7 @@ class OpenRouterLLMProvider(LLMProvider):
         from aishell.utils import get_env_manager
         env_manager = get_env_manager()
         # Default to Claude 3.5 Sonnet via OpenRouter
-        return env_manager.get_var('OPENROUTER_MODEL', 'anthropic/claude-3.5-sonnet')
+        return env_manager.get_var('OPENROUTER_MODEL', 'anthropic/claude-3.5-sonnet') or 'anthropic/claude-3.5-sonnet'
     
     def validate_config(self) -> bool:
         """Validate the provider configuration."""

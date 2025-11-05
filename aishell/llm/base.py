@@ -74,7 +74,7 @@ class LLMProvider(ABC):
         pass
     
     @abstractmethod
-    async def stream_query(
+    def stream_query(
         self,
         prompt: str,
         model: Optional[str] = None,
@@ -83,14 +83,14 @@ class LLMProvider(ABC):
         **kwargs
     ) -> AsyncIterator[str]:
         """Stream a query to the LLM.
-        
+
         Args:
             prompt: The prompt to send to the LLM
             model: The model to use (uses default if not specified)
             temperature: Temperature for sampling (0.0 to 1.0)
             max_tokens: Maximum tokens to generate
             **kwargs: Additional provider-specific parameters
-            
+
         Yields:
             Chunks of the response as they arrive
         """
@@ -104,10 +104,10 @@ class LLMProvider(ABC):
         """
         return True
     
-    async def __aenter__(self):
+    async def __aenter__(self) -> "LLMProvider":
         """Async context manager entry."""
         return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit."""
         pass

@@ -47,7 +47,7 @@ class MCPMessage:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        data = {"jsonrpc": self.jsonrpc, "method": self.method}
+        data: Dict[str, Any] = {"jsonrpc": self.jsonrpc, "method": self.method}
         if self.params is not None:
             data["params"] = self.params
         if self.id is not None:
@@ -284,7 +284,7 @@ class MCPClient:
         Returns:
             Prompt content
         """
-        params = {"name": name}
+        params: Dict[str, Any] = {"name": name}
         if arguments:
             params["arguments"] = arguments
             
@@ -302,9 +302,10 @@ class MCPClient:
             title: Panel title
         """
         if response.is_error:
+            assert response.error is not None, "Error must be present when is_error is True"
             error_content = f"[red]Error Code:[/red] {response.error.get('code', 'Unknown')}\n"
             error_content += f"[red]Message:[/red] {response.error.get('message', 'Unknown error')}"
-            
+
             if 'data' in response.error:
                 error_content += f"\n[red]Details:[/red] {response.error['data']}"
             
