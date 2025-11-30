@@ -146,6 +146,32 @@ actions = self._parse_llm_response(response.content)  # Correct!
 
 **Fix**: Added code to parse and store JS results in `navigator.py:319-330`
 
+### 5. Overly Broad CSS Selectors
+**Problem**: Credit card extraction returned 47 items including person names (testimonials), FAQ headings, and program names.
+
+**Selectors that picked up junk**:
+- `.card__heading h3` - picked up FAQ headings
+- `h3` with `[class*="card"]` parent - picked up testimonials
+
+**Fix**: Use ONLY `.credit-card__name` selector - returns 24 actual credit card products.
+
+---
+
+## Test Results Summary (2025-11-26)
+
+| Test | Status | Notes |
+|------|--------|-------|
+| #1 Simple Navigation | ✅ PASSED | Extracted page title and heading |
+| #2 JS Menu Navigation | ✅ PASSED | JS click workaround for hidden menus |
+| #3 Data Extraction | ⚠️ N/A | Marketing page with calculator |
+| #4 AJAX Content Loading | ✅ PASSED | 24 credit cards after scroll+wait |
+| #5 Multi-Step Navigation | ✅ PASSED | 4-level nav to eligibility calculator |
+| #6 Fallback Mechanism | ⚠️ PARTIAL | Haiku succeeded, fallback not triggered |
+| #7 Config Reusability | ✅ PASSED | 3 runs, 24 cards each, consistent |
+| #8 Browser Compatibility | ⏭️ SKIPPED | Not applicable for scraping |
+| #9 Error Handling | ✅ PASSED | Graceful timeout and URL errors |
+| #10 Cost Optimization | ⏳ PENDING | |
+
 ---
 
 ## Technical Notes
