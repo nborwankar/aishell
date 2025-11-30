@@ -1,0 +1,89 @@
+name: Debug Credit Cards page structure
+url: https://www.icicibank.com/personal-banking/cards/credit-card
+actions:
+- type: navigate
+  url: https://www.icicibank.com/personal-banking/cards/credit-card
+  wait_until: networkidle
+  description: Navigate to Credit Cards page
+
+- type: wait
+  duration: 3000
+  description: Wait for page load
+
+- type: scroll
+  direction: down
+  amount: 2000
+  description: Scroll to load content
+
+- type: wait
+  duration: 2000
+  description: Wait for lazy content
+
+# Debug extraction to see page structure
+- type: js
+  code: |
+    (() => {
+      const debug = {
+        page_title: document.title,
+        url: window.location.href,
+
+        // Find all elements with "credit" in class name
+        credit_class_elements: [],
+
+        // Find elements that look like card product names
+        potential_card_names: [],
+
+        // Find all links containing "credit-card" in href
+        credit_card_links: []
+      };
+
+      // Get elements with credit-card in class
+      document.querySelectorAll('[class*="credit-card"]').forEach(el => {
+        const info = {
+          tag: el.tagName,
+          class: el.className,
+          text: el.innerText.trim().substring(0, 100)
+        };
+        if (info.text) debug.credit_class_elements.push(info);
+      });
+      debug.credit_class_elements = debug.credit_class_elements.slice(0, 20);
+
+      // Look for card product names - usually have specific patterns
+      // Credit card names often end with "Credit Card" or "Card"
+      document.querySelectorAll('h2, h3, h4, .card-title, [class*="title"], [class*="name"]').forEach(el => {
+        const text = el.innerText.trim();
+        if (text && text.length < 60 &&
+            (text.toLowerCase().includes('credit card') ||
+             text.toLowerCase().includes('card') && !text.toLowerCase().includes('program'))) {
+          debug.potential_card_names.push({
+            tag: el.tagName,
+            class: el.className,
+            text: text
+          });
+        }
+      });
+      debug.potential_card_names = debug.potential_card_names.slice(0, 30);
+
+      // Get credit card product links
+      document.querySelectorAll('a[href*="credit-card"]').forEach(el => {
+        const text = el.innerText.trim();
+        const href = el.getAttribute('href');
+        if (text && text.length < 60 && text.length > 3) {
+          debug.credit_card_links.push({
+            text: text,
+            href: href
+          });
+        }
+      });
+      debug.credit_card_links = debug.credit_card_links.slice(0, 30);
+
+      return JSON.stringify(debug, null, 2);
+    })()
+  description: Debug page structure
+
+output:
+  format: json
+  file: debug_credit_cards.json
+metadata:
+  test_type: debug
+llm_provider: manual

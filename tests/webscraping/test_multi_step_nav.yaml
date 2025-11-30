@@ -1,0 +1,134 @@
+name: Test Multi-Step Navigation
+url: https://www.icicibank.com/
+actions:
+- type: navigate
+  url: https://www.icicibank.com/
+  wait_until: networkidle
+  description: Navigate to ICICI Bank homepage
+
+- type: wait
+  duration: 3000
+  description: Wait for initial page load
+
+# Step 1: Click on Personal Banking (usually default, but ensure context)
+- type: js
+  code: |
+    (() => {
+      // Look for Personal Banking in top nav
+      const personalLink = document.querySelector('a[href*="personal-banking"]') ||
+                          document.querySelector('a:has-text("Personal Banking")');
+      if (personalLink) {
+        return 'Personal Banking link found';
+      }
+      return 'On personal banking section by default';
+    })()
+  description: Verify Personal Banking section
+
+# Step 2: Navigate to Loans section via JS click
+- type: js
+  code: |
+    (() => {
+      // Click on Loans menu item
+      const loansLink = document.querySelector('a[data-cta-region*="Loans"]') ||
+                       document.querySelector('a[href*="/loans"]') ||
+                       document.querySelector('a:contains("Loans")');
+      if (loansLink) {
+        loansLink.click();
+        return 'Clicked Loans link';
+      }
+      return 'Loans link not found';
+    })()
+  description: Click on Loans menu item
+
+- type: wait
+  duration: 3000
+  description: Wait for page transition
+
+# Step 3: Navigate to Home Loan
+- type: js
+  code: |
+    (() => {
+      // Click on Home Loan link
+      const homeLoanLink = document.querySelector('a[href*="home-loan"]');
+      if (homeLoanLink) {
+        homeLoanLink.click();
+        return 'Clicked Home Loan link';
+      }
+      // Try via data attribute
+      const altLink = document.querySelector('a[data-cta-region*="Home Loan"]');
+      if (altLink) {
+        altLink.click();
+        return 'Clicked Home Loan via data-cta-region';
+      }
+      return 'Home Loan link not found';
+    })()
+  description: Navigate to Home Loan page
+
+- type: wait
+  duration: 5000
+  description: Wait for Home Loan page to load
+
+# Step 4: Look for and click Check Eligibility
+- type: js
+  code: |
+    (() => {
+      // Look for Check Eligibility button/link
+      const eligibilityLink = document.querySelector('a[href*="eligibility"]') ||
+                             document.querySelector('button:contains("Eligibility")') ||
+                             document.querySelector('a:contains("Check Eligibility")') ||
+                             document.querySelector('[class*="eligibility"]');
+      if (eligibilityLink) {
+        eligibilityLink.click();
+        return 'Clicked eligibility link';
+      }
+      // Just capture page info if no eligibility link
+      return 'Eligibility link not found - capturing current page';
+    })()
+  description: Try to navigate to eligibility section
+
+- type: wait
+  duration: 3000
+  description: Wait for final page
+
+# Extract final page information
+- type: js
+  code: |
+    (() => {
+      const result = {
+        final_url: window.location.href,
+        page_title: document.title,
+        main_heading: '',
+        navigation_path: [],
+        page_sections: []
+      };
+
+      // Get main heading
+      const h1 = document.querySelector('h1');
+      if (h1) result.main_heading = h1.innerText.trim();
+
+      // Get breadcrumb if available
+      const breadcrumbs = document.querySelectorAll('.breadcrumb a, nav[aria-label="breadcrumb"] a, .breadcrumbs a');
+      breadcrumbs.forEach(b => result.navigation_path.push(b.innerText.trim()));
+
+      // Get page sections
+      document.querySelectorAll('h2, h3').forEach(h => {
+        const text = h.innerText.trim();
+        if (text.length < 100 && text.length > 0) {
+          result.page_sections.push(text);
+        }
+      });
+
+      // Limit sections
+      result.page_sections = result.page_sections.slice(0, 10);
+
+      return JSON.stringify(result);
+    })()
+  description: Extract final page data
+
+output:
+  format: json
+  file: multi_step_nav_result.json
+metadata:
+  category: navigation
+  test_type: multi_step
+llm_provider: manual

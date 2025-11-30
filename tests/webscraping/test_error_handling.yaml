@@ -1,0 +1,32 @@
+name: Test Error Handling - Invalid Selectors
+url: https://www.icicibank.com/personal-banking/cards/credit-card
+actions:
+- type: navigate
+  url: https://www.icicibank.com/personal-banking/cards/credit-card
+  wait_until: networkidle
+  description: Navigate to credit cards page
+
+- type: wait
+  duration: 2000
+  description: Wait for page load
+
+# This selector does not exist - should fail gracefully
+- type: click
+  selector: .non-existent-class-that-does-not-exist
+  timeout: 5000
+  description: Click non-existent element (should fail)
+
+# This extract should return empty - graceful degradation
+- type: extract
+  selectors:
+    fake_data: .fake-selector-xyz
+    another_fake: #non-existent-id
+  extract_type: text
+  description: Extract from non-existent selectors
+
+output:
+  format: json
+  file: error_test_output.json
+metadata:
+  test_type: error_handling
+llm_provider: manual

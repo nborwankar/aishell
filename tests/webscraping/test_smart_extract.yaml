@@ -1,0 +1,116 @@
+name: Smart extraction of home loan details
+url: https://www.icicibank.com/personal-banking/loans/home-loan
+actions:
+- type: navigate
+  url: https://www.icicibank.com/personal-banking/loans/home-loan
+  wait_until: networkidle
+  description: Navigate directly to Home Loan page
+
+- type: wait
+  duration: 3000
+  description: Wait for page to fully load
+
+- type: scroll
+  direction: down
+  amount: 2000
+  description: Scroll to load all content
+
+- type: wait
+  duration: 2000
+  description: Wait for lazy content
+
+- type: js
+  code: |
+    (() => {
+      const result = {};
+      const allText = document.body.innerText;
+
+      // Loan name from title
+      result.loan_name = 'ICICI Bank Home Loan';
+
+      // Find interest rate - look for patterns like "8.75% p.a." or "starting from 8.5%"
+      const ratePatterns = [
+        /(?:interest\s*rate|rate\s*of\s*interest|starting\s*(?:from|at))\s*[:\-]?\s*(\d+\.?\d*)\s*%/i,
+        /(\d+\.?\d*)\s*%\s*(?:p\.?a\.?|per\s*annum)/i,
+        /(?:from|@)\s*(\d+\.?\d*)\s*%/i
+      ];
+      for (const pattern of ratePatterns) {
+        const match = allText.match(pattern);
+        if (match) {
+          result.interest_rate = match[1] + '% p.a.';
+          break;
+        }
+      }
+      if (!result.interest_rate) result.interest_rate = 'Not found';
+
+      // Find processing fee - look for "processing fee" followed by amount or percentage
+      const feePatterns = [
+        /processing\s*fee\s*[:\-]?\s*(?:Rs\.?|₹)?\s*([\d,]+(?:\.\d+)?)/i,
+        /processing\s*fee\s*[:\-]?\s*(\d+\.?\d*)\s*%/i,
+        /processing\s*fee\s*[:\-]?\s*(nil|zero|waived|no\s*fee)/i
+      ];
+      for (const pattern of feePatterns) {
+        const match = allText.match(pattern);
+        if (match) {
+          result.processing_fee = match[1];
+          break;
+        }
+      }
+      if (!result.processing_fee) result.processing_fee = 'Not found';
+
+      // Find loan amount - look for "up to X crore" or "loan amount"
+      const amountPatterns = [
+        /(?:loan\s*amount|borrow|get\s*up\s*to)\s*[:\-]?\s*(?:Rs\.?|₹)?\s*([\d,]+\s*(?:lakh|crore|Cr|L)?)/i,
+        /up\s*to\s*(?:Rs\.?|₹)?\s*([\d,]+\s*(?:lakh|crore|Cr|L)?)/i,
+        /(?:Rs\.?|₹)\s*([\d,]+\s*(?:lakh|crore|Cr|L))/i
+      ];
+      for (const pattern of amountPatterns) {
+        const match = allText.match(pattern);
+        if (match) {
+          result.max_loan_amount = match[1].trim();
+          break;
+        }
+      }
+      if (!result.max_loan_amount) result.max_loan_amount = 'Not found';
+
+      // Find tenure
+      const tenurePatterns = [
+        /(?:tenure|repayment\s*period)\s*[:\-]?\s*(?:up\s*to\s*)?(\d+)\s*years?/i,
+        /(\d+)\s*years?\s*(?:tenure|repayment)/i,
+        /up\s*to\s*(\d+)\s*years/i
+      ];
+      for (const pattern of tenurePatterns) {
+        const match = allText.match(pattern);
+        if (match) {
+          result.max_tenure = match[1] + ' years';
+          break;
+        }
+      }
+      if (!result.max_tenure) result.max_tenure = 'Not found';
+
+      // Find eligibility - look for age, income requirements
+      const eligPatterns = [
+        /(?:age|applicant)\s*[:\-]?\s*(\d+)\s*(?:to|-)\s*(\d+)\s*years?/i,
+        /minimum\s*(?:age|income)\s*[:\-]?\s*([\d,]+)/i
+      ];
+      const eligMatch = allText.match(eligPatterns[0]);
+      if (eligMatch) {
+        result.age_eligibility = eligMatch[1] + ' to ' + eligMatch[2] + ' years';
+      } else {
+        result.age_eligibility = 'Not found';
+      }
+
+      // Get page title for reference
+      result.page_title = document.title;
+
+      return JSON.stringify(result);
+    })()
+  description: Smart JS extraction of loan details
+
+output:
+  format: json
+  file: smart_extract_test.json
+metadata:
+  category: banking
+  product_type: home_loan
+llm_provider: manual

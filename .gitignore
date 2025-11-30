@@ -68,3 +68,6 @@ var/
 wheels/
 *.manifest
 *.spec
+
+# Web scraping examples (site-specific configs, not for public repo)
+usecases/webscraping/examples/

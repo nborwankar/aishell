@@ -1,0 +1,68 @@
+name: Test AJAX loading - Credit Cards extraction
+url: https://www.icicibank.com/personal-banking/cards/credit-card
+actions:
+- type: navigate
+  url: https://www.icicibank.com/personal-banking/cards/credit-card
+  wait_until: networkidle
+  description: Navigate to Credit Cards page
+
+- type: wait
+  duration: 3000
+  description: Wait for initial load
+
+# Scroll to trigger lazy loading
+- type: scroll
+  direction: down
+  amount: 1000
+  description: Scroll to load more cards
+
+- type: wait
+  duration: 2000
+  description: Wait for lazy content
+
+- type: scroll
+  direction: down
+  amount: 1000
+  description: Scroll more
+
+- type: wait
+  duration: 2000
+  description: Wait for content
+
+- type: scroll
+  direction: down
+  amount: 1000
+  description: Final scroll
+
+- type: wait
+  duration: 2000
+  description: Wait for all content
+
+# Extract using ONLY the correct selector: .credit-card__name
+- type: js
+  code: |
+    (() => {
+      const cards = [];
+
+      // ONLY use .credit-card__name - the only selector with actual card product names
+      document.querySelectorAll('.credit-card__name').forEach(el => {
+        const name = el.innerText.trim();
+        if (name && !cards.includes(name)) cards.push(name);
+      });
+
+      return JSON.stringify({
+        page_title: document.title,
+        credit_card_names: cards,
+        total_cards_found: cards.length
+      });
+    })()
+  description: Extract credit card names using .credit-card__name selector only
+
+output:
+  format: json
+  file: credit_cards_extracted.json
+metadata:
+  category: banking
+  product_type: credit_card
+  test_type: ajax_loading
+llm_provider: manual

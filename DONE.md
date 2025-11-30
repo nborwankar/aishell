@@ -1,5 +1,14 @@
 # DONE - Development Log
 
+## Web Scraping Framework - 2025-11-25
+**Documentation moved to**: `usecases/webscraping/`
+- `README.md` - Framework overview and usage
+- `GUIDE.md` - Detailed navigation guide (7,500+ words)
+- `TESTING.md` - Test scenarios and results
+- `DONE.md` - Implementation details and bug fixes
+
+---
+
 ## Spotlight Integration Fix - 2025-10-31
 
 ### Problem

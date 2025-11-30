@@ -72,5 +72,13 @@
 
 --
 
+## Web Scraping with LLM-Assisted Navigation ✅ IMPLEMENTED
+**Documentation moved to**: `usecases/webscraping/`
+- `README.md` - Framework overview and usage
+- `GUIDE.md` - Detailed navigation guide
+- `TESTING.md` - Test scenarios and results
+
+--
+
 ## Phase 3
 *Phase 3 features have been moved to FORLATER.md to keep the project focused on core functionality.*

@@ -1,0 +1,37 @@
+name: Debug extraction - capture raw text
+url: https://www.icicibank.com/personal-banking/loans/home-loan
+actions:
+- type: navigate
+  url: https://www.icicibank.com/personal-banking/loans/home-loan
+  wait_until: networkidle
+
+- type: wait
+  duration: 3000
+
+- type: scroll
+  direction: down
+  amount: 3000
+
+- type: wait
+  duration: 2000
+
+- type: js
+  code: |
+    (() => {
+      const text = document.body.innerText;
+      // Find all lines containing key terms
+      const lines = text.split('\n').filter(line => line.trim().length > 0);
+      const relevant = lines.filter(line =>
+        /rate|fee|tenure|year|eligib|age|income|amount|lakh|crore|%/i.test(line)
+      ).slice(0, 50);  // First 50 relevant lines
+      return JSON.stringify({
+        relevant_lines: relevant,
+        total_lines: lines.length
+      });
+    })()
+  description: Capture relevant text from page
+
+output:
+  format: json
+  file: debug_extract.json
+llm_provider: manual

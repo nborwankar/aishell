@@ -1,0 +1,65 @@
+name: Navigate to Home Loan via Loans menu
+url: https://www.icicibank.com
+actions:
+- type: navigate
+  url: https://www.icicibank.com
+  wait_until: networkidle
+  description: Navigate to ICICI Bank homepage
+
+# Use JavaScript to click Loans menu
+- type: js
+  code: |
+    (() => {
+      window.scrollTo(0, 0);
+      const loansLink = document.querySelector('a[data-cta-region*="Loans"]');
+      if (loansLink) {
+        loansLink.click();
+        return 'Loans menu clicked';
+      }
+      return 'Loans menu not found';
+    })()
+  description: Click Loans menu via JavaScript
+
+- type: wait
+  duration: 2000
+  description: Wait for submenu to appear
+
+# Click Home Loan link - this triggers navigation
+- type: js
+  code: |
+    (() => {
+      const homeLoan = document.querySelector('a[href*="home-loan"]');
+      if (homeLoan) {
+        homeLoan.click();
+        return 'Home Loan clicked';
+      }
+      return 'Home Loan not found';
+    })()
+  description: Click Home Loan via JavaScript
+
+# Wait for new page to fully load
+- type: wait
+  duration: 5000
+  description: Wait for Home Loan page to load
+
+# Wait for main content to be visible
+- type: wait
+  selector: h1
+  state: visible
+  timeout: 30000
+  description: Wait for page heading to appear
+
+- type: extract
+  selectors:
+    page_title: title
+    main_heading: h1
+  extract_type: text
+  description: Extract page title and heading
+
+output:
+  format: json
+  file: home_loan_data.json
+metadata:
+  category: banking
+  product_type: home_loan
+llm_provider: manual
