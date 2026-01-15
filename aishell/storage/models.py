@@ -25,8 +25,6 @@ class StoredResponse:
     model: str
     created_at: datetime = field(default_factory=datetime.now)
     session_id: Optional[str] = None
-    is_error: bool = False
-    error_message: Optional[str] = None
     id: Optional[int] = None
     metadata: List[ResponseMetadata] = field(default_factory=list)
 
@@ -47,7 +45,30 @@ class StoredResponse:
             "model": self.model,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "session_id": self.session_id,
-            "is_error": self.is_error,
-            "error_message": self.error_message,
             "metadata": {m.key: m.value for m in self.metadata},
+        }
+
+
+@dataclass
+class StoredError:
+    """A stored LLM error response."""
+
+    query: str
+    provider: str
+    model: str
+    error_message: str
+    created_at: datetime = field(default_factory=datetime.now)
+    session_id: Optional[str] = None
+    id: Optional[int] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "id": self.id,
+            "query": self.query,
+            "provider": self.provider,
+            "model": self.model,
+            "error_message": self.error_message,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "session_id": self.session_id,
         }

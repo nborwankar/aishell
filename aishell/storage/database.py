@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 import threading
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS responses (
@@ -14,9 +14,17 @@ CREATE TABLE IF NOT EXISTS responses (
     provider TEXT NOT NULL,
     model TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    session_id TEXT,
-    is_error BOOLEAN DEFAULT FALSE,
-    error_message TEXT
+    session_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS error_responses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    error_message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    session_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS response_metadata (
@@ -34,6 +42,9 @@ CREATE TABLE IF NOT EXISTS schema_version (
 CREATE INDEX IF NOT EXISTS idx_responses_provider ON responses(provider);
 CREATE INDEX IF NOT EXISTS idx_responses_created_at ON responses(created_at);
 CREATE INDEX IF NOT EXISTS idx_responses_session_id ON responses(session_id);
+CREATE INDEX IF NOT EXISTS idx_error_responses_provider ON error_responses(provider);
+CREATE INDEX IF NOT EXISTS idx_error_responses_created_at ON error_responses(created_at);
+CREATE INDEX IF NOT EXISTS idx_error_responses_session_id ON error_responses(session_id);
 CREATE INDEX IF NOT EXISTS idx_metadata_response_id ON response_metadata(response_id);
 CREATE INDEX IF NOT EXISTS idx_metadata_key ON response_metadata(key);
 """
@@ -74,6 +85,22 @@ class Database:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
             conn = self._get_connection()
+
+            # Check current schema version
+            current_version = 0
+            try:
+                cursor = conn.execute("SELECT version FROM schema_version LIMIT 1")
+                row = cursor.fetchone()
+                if row:
+                    current_version = row[0]
+            except sqlite3.OperationalError:
+                # Table doesn't exist yet
+                pass
+
+            # Run migrations if needed
+            if current_version < SCHEMA_VERSION:
+                self._migrate(conn, current_version)
+
             conn.executescript(SCHEMA_SQL)
 
             # Set schema version
@@ -83,6 +110,74 @@ class Database:
             )
             conn.commit()
             self._initialized = True
+
+    def _migrate(self, conn: sqlite3.Connection, from_version: int) -> None:
+        """Run migrations from from_version to current SCHEMA_VERSION."""
+        if from_version == 1:
+            # Migration v1 -> v2: Create error_responses table and migrate errors
+            # Only run this if upgrading from v1 (has old schema with is_error column)
+
+            # Check if old responses table exists with is_error column
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(responses)")
+            columns = {row[1] for row in cursor.fetchall()}
+
+            if "is_error" in columns:
+                # Create error_responses table
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS error_responses (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        query TEXT NOT NULL,
+                        provider TEXT NOT NULL,
+                        model TEXT NOT NULL,
+                        error_message TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        session_id TEXT
+                    )
+                """
+                )
+
+                # Move existing errors to error_responses table
+                conn.execute(
+                    """
+                    INSERT INTO error_responses (query, provider, model, error_message, created_at, session_id)
+                    SELECT query, provider, model,
+                           COALESCE(error_message, content), created_at, session_id
+                    FROM responses
+                    WHERE is_error = 1
+                """
+                )
+
+                # Delete errors from responses table
+                conn.execute("DELETE FROM responses WHERE is_error = 1")
+
+                # Remove is_error and error_message columns by recreating table
+                # SQLite doesn't support DROP COLUMN in older versions
+                conn.execute(
+                    """
+                    CREATE TABLE responses_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        query TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        provider TEXT NOT NULL,
+                        model TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        session_id TEXT
+                    )
+                """
+                )
+                conn.execute(
+                    """
+                    INSERT INTO responses_new (id, query, content, provider, model, created_at, session_id)
+                    SELECT id, query, content, provider, model, created_at, session_id
+                    FROM responses
+                """
+                )
+                conn.execute("DROP TABLE responses")
+                conn.execute("ALTER TABLE responses_new RENAME TO responses")
+
+                conn.commit()
 
     def close(self) -> None:
         """Close the current thread's connection."""

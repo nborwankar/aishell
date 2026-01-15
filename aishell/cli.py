@@ -546,14 +546,19 @@ def collate(args, temperature, max_tokens, table, db, save):
                 from aishell.storage import get_storage_manager
 
                 storage = get_storage_manager(db)
-                storage.store_collation(
+                stored_responses, stored_errors = storage.store_collation(
                     query=query_str,
                     responses=results,
                     metadata={"temperature": temperature, "max_tokens": max_tokens},
                 )
-                console.print(
-                    f"[dim]Responses saved to database: {storage.db_path}[/dim]"
-                )
+                if stored_responses:
+                    console.print(
+                        f"[dim]Saved {len(stored_responses)} response(s) to database: {storage.db_path}[/dim]"
+                    )
+                if stored_errors:
+                    console.print(
+                        f"[dim]Saved {len(stored_errors)} error(s) to error log[/dim]"
+                    )
             except Exception as e:
                 console.print(
                     f"[yellow]Warning: Could not save to database: {e}[/yellow]"
@@ -618,9 +623,6 @@ def collate(args, temperature, max_tokens, table, db, save):
 @click.option("--hours", "-h", type=int, help="Only responses from last N hours")
 @click.option("--limit", "-l", default=20, help="Maximum results to return")
 @click.option("--offset", "-o", default=0, help="Skip first N results")
-@click.option(
-    "--include-errors/--no-errors", default=True, help="Include error responses"
-)
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--db", type=click.Path(), help="Override database path")
 def search_responses(
@@ -631,7 +633,6 @@ def search_responses(
     hours,
     limit,
     offset,
-    include_errors,
     output_json,
     db,
 ):
@@ -662,7 +663,6 @@ def search_responses(
         providers=list(provider) if provider else None,
         models=list(model) if model else None,
         session_id=session,
-        include_errors=include_errors,
         from_date=datetime.now() - timedelta(hours=hours) if hours else None,
         limit=limit,
         offset=offset,
@@ -699,14 +699,6 @@ def search_responses(
             resp.content[:37] + "..." if len(resp.content) > 40 else resp.content
         )
 
-        if resp.is_error:
-            error_msg = resp.error_message or "Unknown error"
-            content_preview = (
-                f"[red]Error: {error_msg[:30]}...[/red]"
-                if len(error_msg) > 30
-                else f"[red]Error: {error_msg}[/red]"
-            )
-
         response_table.add_row(
             str(resp.id),
             resp.created_at.strftime("%Y-%m-%d %H:%M") if resp.created_at else "N/A",
@@ -719,6 +711,77 @@ def search_responses(
 
     if result.total_count > len(result.responses):
         console.print(f"\n[dim]Use --offset {offset + limit} to see more results[/dim]")
+
+
+@main.command(name="search-errors")
+@click.option("--provider", "-p", help="Filter by provider")
+@click.option("--hours", "-h", type=int, help="Only errors from last N hours")
+@click.option("--limit", "-l", default=20, help="Maximum results to return")
+@click.option("--json", "output_json", is_flag=True, help="Output as JSON")
+@click.option("--db", type=click.Path(), help="Override database path")
+def search_errors(provider, hours, limit, output_json, db):
+    """Search stored LLM errors.
+
+    Errors are stored separately from successful responses.
+
+    Examples:
+        aishell search-errors
+        aishell search-errors --provider openai
+        aishell search-errors --hours 24
+        aishell search-errors --json > errors.json
+    """
+    from aishell.storage import get_storage_manager
+
+    try:
+        storage = get_storage_manager(db)
+    except Exception as e:
+        console.print(f"[red]Error opening database:[/red] {e}")
+        return
+
+    console.print(f"[dim]Database: {storage.db_path}[/dim]")
+
+    errors = storage.get_errors(provider=provider, hours=hours, limit=limit)
+
+    if output_json:
+        import json
+
+        console.print(json.dumps([e.to_dict() for e in errors], indent=2, default=str))
+        return
+
+    if not errors:
+        console.print("[green]No errors found[/green]")
+        return
+
+    total_errors = storage.count_errors()
+    console.print(
+        f"[yellow]Found {total_errors} total errors (showing {len(errors)})[/yellow]"
+    )
+    console.print()
+
+    error_table = Table(title="Stored Errors", show_lines=True)
+    error_table.add_column("ID", style="dim", width=6)
+    error_table.add_column("Date", style="cyan", width=16)
+    error_table.add_column("Provider", style="blue", width=10)
+    error_table.add_column("Query", style="white", width=25, no_wrap=True)
+    error_table.add_column("Error", style="red", width=45, no_wrap=True)
+
+    for err in errors:
+        query_preview = err.query[:22] + "..." if len(err.query) > 25 else err.query
+        error_preview = (
+            err.error_message[:42] + "..."
+            if len(err.error_message) > 45
+            else err.error_message
+        )
+
+        error_table.add_row(
+            str(err.id),
+            err.created_at.strftime("%Y-%m-%d %H:%M") if err.created_at else "N/A",
+            err.provider,
+            query_preview,
+            error_preview,
+        )
+
+    console.print(error_table)
 
 
 @main.command()

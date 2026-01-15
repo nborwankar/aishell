@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 import threading
 
 from .database import Database
-from .models import StoredResponse, ResponseMetadata
+from .models import StoredResponse, ResponseMetadata, StoredError
 from .search import SearchQuery, SearchResult
 
 
@@ -41,11 +41,9 @@ class StorageManager:
         provider: str,
         model: str,
         session_id: Optional[str] = None,
-        is_error: bool = False,
-        error_message: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> StoredResponse:
-        """Store a single LLM response.
+        """Store a single successful LLM response.
 
         Returns:
             StoredResponse with assigned ID
@@ -57,10 +55,10 @@ class StorageManager:
             cursor.execute(
                 """
                 INSERT INTO responses
-                (query, content, provider, model, session_id, is_error, error_message)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (query, content, provider, model, session_id)
+                VALUES (?, ?, ?, ?, ?)
             """,
-                (query, content, provider, model, session_id, is_error, error_message),
+                (query, content, provider, model, session_id),
             )
 
             response_id = cursor.lastrowid
@@ -95,9 +93,45 @@ class StorageManager:
                 provider=provider,
                 model=model,
                 session_id=session_id,
-                is_error=is_error,
-                error_message=error_message,
                 metadata=metadata_objects,
+            )
+
+    def store_error(
+        self,
+        query: str,
+        provider: str,
+        model: str,
+        error_message: str,
+        session_id: Optional[str] = None,
+    ) -> StoredError:
+        """Store an error response.
+
+        Returns:
+            StoredError with assigned ID
+        """
+        with self._lock:
+            conn = self._db.connection
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                INSERT INTO error_responses
+                (query, provider, model, error_message, session_id)
+                VALUES (?, ?, ?, ?, ?)
+            """,
+                (query, provider, model, error_message, session_id),
+            )
+
+            error_id = cursor.lastrowid
+            conn.commit()
+
+            return StoredError(
+                id=error_id,
+                query=query,
+                provider=provider,
+                model=model,
+                error_message=error_message,
+                session_id=session_id,
             )
 
     def store_collation(
@@ -105,7 +139,7 @@ class StorageManager:
         query: str,
         responses: List[tuple],  # List of (provider_name, LLMResponse)
         metadata: Optional[Dict[str, Any]] = None,
-    ) -> List[StoredResponse]:
+    ) -> tuple:
         """Store multiple responses from a collation.
 
         Args:
@@ -114,39 +148,50 @@ class StorageManager:
             metadata: Shared metadata for all responses
 
         Returns:
-            List of StoredResponse objects with assigned IDs
+            Tuple of (List[StoredResponse], List[StoredError])
         """
         session_id = str(uuid.uuid4())
-        stored = []
+        stored_responses = []
+        stored_errors = []
 
         for provider_name, llm_response in responses:
-            # Merge response-specific metadata with shared metadata
-            response_meta = dict(metadata) if metadata else {}
-
-            if hasattr(llm_response, "usage") and llm_response.usage:
-                response_meta.update(llm_response.usage)
-
-            if hasattr(llm_response, "metadata") and llm_response.metadata:
-                response_meta.update(llm_response.metadata)
-
             # Check for error
             is_error = getattr(llm_response, "is_error", False)
             if not is_error and hasattr(llm_response, "error"):
                 is_error = llm_response.error is not None
 
-            stored_response = self.store_response(
-                query=query,
-                content=llm_response.content if not is_error else "",
-                provider=provider_name,
-                model=getattr(llm_response, "model", "unknown"),
-                session_id=session_id,
-                is_error=is_error,
-                error_message=llm_response.error if is_error else None,
-                metadata=response_meta,
-            )
-            stored.append(stored_response)
+            if is_error:
+                # Store in error table
+                error_msg = getattr(llm_response, "error", None) or "Unknown error"
+                stored_error = self.store_error(
+                    query=query,
+                    provider=provider_name,
+                    model=getattr(llm_response, "model", "unknown"),
+                    error_message=error_msg,
+                    session_id=session_id,
+                )
+                stored_errors.append(stored_error)
+            else:
+                # Merge response-specific metadata with shared metadata
+                response_meta = dict(metadata) if metadata else {}
 
-        return stored
+                if hasattr(llm_response, "usage") and llm_response.usage:
+                    response_meta.update(llm_response.usage)
+
+                if hasattr(llm_response, "metadata") and llm_response.metadata:
+                    response_meta.update(llm_response.metadata)
+
+                stored_response = self.store_response(
+                    query=query,
+                    content=llm_response.content,
+                    provider=provider_name,
+                    model=getattr(llm_response, "model", "unknown"),
+                    session_id=session_id,
+                    metadata=response_meta,
+                )
+                stored_responses.append(stored_response)
+
+        return stored_responses, stored_errors
 
     def get_response(self, response_id: int) -> Optional[StoredResponse]:
         """Get a response by ID with its metadata."""
@@ -203,10 +248,75 @@ class StorageManager:
             model=row["model"],
             created_at=created_at,
             session_id=row["session_id"],
-            is_error=bool(row["is_error"]),
-            error_message=row["error_message"],
             metadata=metadata,
         )
+
+    def _row_to_error(self, row) -> StoredError:
+        """Convert database row to StoredError."""
+        from datetime import datetime
+
+        # Parse created_at
+        created_at = row["created_at"]
+        if isinstance(created_at, str):
+            try:
+                created_at = datetime.fromisoformat(created_at)
+            except ValueError:
+                created_at = datetime.now()
+
+        return StoredError(
+            id=row["id"],
+            query=row["query"],
+            provider=row["provider"],
+            model=row["model"],
+            error_message=row["error_message"],
+            created_at=created_at,
+            session_id=row["session_id"],
+        )
+
+    def get_errors(
+        self,
+        provider: Optional[str] = None,
+        hours: Optional[int] = None,
+        limit: int = 50,
+    ) -> List[StoredError]:
+        """Get stored errors with optional filtering.
+
+        Args:
+            provider: Filter by provider name
+            hours: Filter to errors from last N hours
+            limit: Maximum number of errors to return
+
+        Returns:
+            List of StoredError objects
+        """
+        conn = self._db.connection
+        cursor = conn.cursor()
+
+        sql = "SELECT * FROM error_responses WHERE 1=1"
+        params = []
+
+        if provider:
+            sql += " AND provider = ?"
+            params.append(provider)
+
+        if hours:
+            sql += " AND created_at >= datetime('now', ?)"
+            params.append(f"-{hours} hours")
+
+        sql += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+
+        return [self._row_to_error(row) for row in rows]
+
+    def count_errors(self) -> int:
+        """Get total count of stored errors."""
+        conn = self._db.connection
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM error_responses")
+        return cursor.fetchone()[0]
 
 
 # Global storage manager instances (keyed by db_path)

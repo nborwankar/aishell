@@ -998,12 +998,17 @@ Please consider whether any of the available MCP tools could help with this requ
                         from aishell.storage import get_storage_manager
 
                         storage = get_storage_manager(db_path)
-                        storage.store_collation(
+                        stored_responses, stored_errors = storage.store_collation(
                             query=query, responses=results, metadata={}
                         )
-                        console.print(
-                            f"[dim]Responses saved to database: {storage.db_path}[/dim]"
-                        )
+                        if stored_responses:
+                            console.print(
+                                f"[dim]Saved {len(stored_responses)} response(s) to database: {storage.db_path}[/dim]"
+                            )
+                        if stored_errors:
+                            console.print(
+                                f"[dim]Saved {len(stored_errors)} error(s) to error log[/dim]"
+                            )
                     except Exception as e:
                         console.print(
                             f"[yellow]Warning: Could not save to database: {e}[/yellow]"

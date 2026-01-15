@@ -37,7 +37,6 @@ class SearchQuery:
     providers: Optional[List[str]] = None
     models: Optional[List[str]] = None
     session_id: Optional[str] = None
-    include_errors: bool = True
 
     # Date range
     from_date: Optional[datetime] = None
@@ -78,9 +77,6 @@ class SearchQuery:
         if self.session_id:
             conditions.append("session_id = ?")
             params.append(self.session_id)
-
-        if not self.include_errors:
-            conditions.append("is_error = 0")
 
         if self.from_date:
             conditions.append("created_at >= ?")
@@ -150,8 +146,6 @@ class SearchQuery:
                     model=row["model"],
                     created_at=created_at,
                     session_id=row["session_id"],
-                    is_error=bool(row["is_error"]),
-                    error_message=row["error_message"],
                     metadata=metadata,
                 )
             )
