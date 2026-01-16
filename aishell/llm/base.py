@@ -2,21 +2,23 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, AsyncIterator
-import asyncio
+from typing import Optional, Dict, Any, AsyncIterator, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .conversation import Message
 
 
 @dataclass
 class LLMResponse:
     """Response from an LLM provider."""
-    
+
     content: str
     model: str
     provider: str
     usage: Optional[Dict[str, int]] = None
     metadata: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
-    
+
     @property
     def is_error(self) -> bool:
         """Check if the response is an error."""
@@ -25,29 +27,29 @@ class LLMResponse:
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers."""
-    
+
     def __init__(self, api_key: Optional[str] = None, **kwargs):
         """Initialize the LLM provider.
-        
+
         Args:
             api_key: API key for the provider (if required)
             **kwargs: Additional provider-specific configuration
         """
         self.api_key = api_key
         self.config = kwargs
-    
+
     @property
     @abstractmethod
     def name(self) -> str:
         """Return the name of the provider."""
         pass
-    
+
     @property
     @abstractmethod
     def default_model(self) -> str:
         """Return the default model for this provider."""
         pass
-    
+
     @abstractmethod
     async def query(
         self,
@@ -59,7 +61,7 @@ class LLMProvider(ABC):
         **kwargs
     ) -> LLMResponse:
         """Send a query to the LLM.
-        
+
         Args:
             prompt: The prompt to send to the LLM
             model: The model to use (uses default if not specified)
@@ -67,12 +69,12 @@ class LLMProvider(ABC):
             max_tokens: Maximum tokens to generate
             stream: Whether to stream the response
             **kwargs: Additional provider-specific parameters
-            
+
         Returns:
             LLMResponse object containing the response
         """
         pass
-    
+
     @abstractmethod
     async def stream_query(
         self,
@@ -83,31 +85,86 @@ class LLMProvider(ABC):
         **kwargs
     ) -> AsyncIterator[str]:
         """Stream a query to the LLM.
-        
+
         Args:
             prompt: The prompt to send to the LLM
             model: The model to use (uses default if not specified)
             temperature: Temperature for sampling (0.0 to 1.0)
             max_tokens: Maximum tokens to generate
             **kwargs: Additional provider-specific parameters
-            
+
         Yields:
             Chunks of the response as they arrive
         """
         pass
-    
+
+    async def chat(
+        self,
+        messages: List["Message"],
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        **kwargs
+    ) -> LLMResponse:
+        """Send a multi-turn conversation to the LLM.
+
+        Default implementation uses only the last message (for backward compatibility).
+        Providers should override this to send full conversation history.
+
+        Args:
+            messages: List of Message objects representing the conversation
+            model: The model to use (uses default if not specified)
+            temperature: Temperature for sampling (0.0 to 1.0)
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional provider-specific parameters
+
+        Returns:
+            LLMResponse object containing the response
+        """
+        # Default: use only the last user message
+        if not messages:
+            return LLMResponse(
+                content="",
+                model=model or self.default_model,
+                provider=self.name,
+                error="No messages provided",
+            )
+
+        # Find the last user message
+        last_user_msg = None
+        for msg in reversed(messages):
+            if msg.role == "user":
+                last_user_msg = msg
+                break
+
+        if last_user_msg is None:
+            return LLMResponse(
+                content="",
+                model=model or self.default_model,
+                provider=self.name,
+                error="No user message found",
+            )
+
+        return await self.query(
+            last_user_msg.content,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs
+        )
+
     def validate_config(self) -> bool:
         """Validate the provider configuration.
-        
+
         Returns:
             True if configuration is valid, False otherwise
         """
         return True
-    
+
     async def __aenter__(self):
         """Async context manager entry."""
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         pass

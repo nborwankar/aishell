@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 import threading
 
 from .database import Database
-from .models import StoredResponse, ResponseMetadata, StoredError
+from .models import StoredResponse, ResponseMetadata, StoredError, ConversationMessage
 from .search import SearchQuery, SearchResult
 
 
@@ -317,6 +317,221 @@ class StorageManager:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM error_responses")
         return cursor.fetchone()[0]
+
+    # ==================== Conversation Methods ====================
+
+    def start_conversation(self, provider: str, model: str) -> str:
+        """Start a new conversation.
+
+        Args:
+            provider: LLM provider name
+            model: Model name
+
+        Returns:
+            conversation_id (UUID string)
+        """
+        return str(uuid.uuid4())
+
+    def add_message(
+        self,
+        conversation_id: str,
+        provider: str,
+        model: str,
+        role: str,
+        content: str,
+    ) -> ConversationMessage:
+        """Add a message to a conversation.
+
+        Automatically handles threading by setting start_id and parent_id.
+
+        Args:
+            conversation_id: UUID of the conversation
+            provider: LLM provider name
+            model: Model name
+            role: Message role ('user', 'assistant', 'system')
+            content: Message content
+
+        Returns:
+            ConversationMessage with assigned ID
+        """
+        with self._lock:
+            conn = self._db.connection
+            cursor = conn.cursor()
+
+            # Get the last message in this conversation to set parent_id
+            cursor.execute(
+                """
+                SELECT id, start_id FROM conversations
+                WHERE conversation_id = ?
+                ORDER BY id DESC LIMIT 1
+            """,
+                (conversation_id,),
+            )
+            last_msg = cursor.fetchone()
+
+            if last_msg:
+                parent_id = last_msg["id"]
+                start_id = last_msg["start_id"]
+            else:
+                parent_id = None
+                start_id = None  # Will be set after insert
+
+            cursor.execute(
+                """
+                INSERT INTO conversations
+                (conversation_id, provider, model, start_id, parent_id, role, content)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+                (conversation_id, provider, model, start_id, parent_id, role, content),
+            )
+
+            message_id = cursor.lastrowid
+
+            # If this is the first message, update start_id to point to itself
+            if start_id is None:
+                start_id = message_id
+                cursor.execute(
+                    "UPDATE conversations SET start_id = ? WHERE id = ?",
+                    (start_id, message_id),
+                )
+
+            conn.commit()
+
+            return ConversationMessage(
+                id=message_id,
+                conversation_id=conversation_id,
+                provider=provider,
+                model=model,
+                role=role,
+                content=content,
+                start_id=start_id,
+                parent_id=parent_id,
+            )
+
+    def get_conversation_history(
+        self, conversation_id: str
+    ) -> List[ConversationMessage]:
+        """Get all messages in a conversation ordered by id.
+
+        Args:
+            conversation_id: UUID of the conversation
+
+        Returns:
+            List of ConversationMessage objects in chronological order
+        """
+        conn = self._db.connection
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT * FROM conversations
+            WHERE conversation_id = ?
+            ORDER BY id ASC
+        """,
+            (conversation_id,),
+        )
+        rows = cursor.fetchall()
+
+        return [self._row_to_conversation_message(row) for row in rows]
+
+    def list_conversations(
+        self,
+        provider: Optional[str] = None,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """List recent conversations with metadata.
+
+        Args:
+            provider: Filter by provider name
+            limit: Maximum number of conversations to return
+
+        Returns:
+            List of conversation summaries with id, provider, model,
+            message_count, first_message preview, and timestamps
+        """
+        conn = self._db.connection
+        cursor = conn.cursor()
+
+        sql = """
+            SELECT
+                conversation_id,
+                provider,
+                model,
+                COUNT(*) as message_count,
+                MIN(created_at) as started_at,
+                MAX(created_at) as last_message_at
+            FROM conversations
+        """
+        params = []
+
+        if provider:
+            sql += " WHERE provider = ?"
+            params.append(provider)
+
+        sql += """
+            GROUP BY conversation_id
+            ORDER BY last_message_at DESC
+            LIMIT ?
+        """
+        params.append(limit)
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+
+        result = []
+        for row in rows:
+            # Get first message preview
+            cursor.execute(
+                """
+                SELECT content FROM conversations
+                WHERE conversation_id = ? AND role = 'user'
+                ORDER BY id ASC LIMIT 1
+            """,
+                (row["conversation_id"],),
+            )
+            first_msg = cursor.fetchone()
+            preview = ""
+            if first_msg:
+                preview = first_msg["content"][:50]
+                if len(first_msg["content"]) > 50:
+                    preview += "..."
+
+            result.append(
+                {
+                    "conversation_id": row["conversation_id"],
+                    "provider": row["provider"],
+                    "model": row["model"],
+                    "message_count": row["message_count"],
+                    "started_at": row["started_at"],
+                    "last_message_at": row["last_message_at"],
+                    "preview": preview,
+                }
+            )
+
+        return result
+
+    def _row_to_conversation_message(self, row) -> ConversationMessage:
+        """Convert database row to ConversationMessage."""
+        from datetime import datetime
+
+        created_at = row["created_at"]
+        if isinstance(created_at, str):
+            try:
+                created_at = datetime.fromisoformat(created_at)
+            except ValueError:
+                created_at = datetime.now()
+
+        return ConversationMessage(
+            id=row["id"],
+            conversation_id=row["conversation_id"],
+            provider=row["provider"],
+            model=row["model"],
+            role=row["role"],
+            content=row["content"],
+            start_id=row["start_id"],
+            parent_id=row["parent_id"],
+            created_at=created_at,
+        )
 
 
 # Global storage manager instances (keyed by db_path)

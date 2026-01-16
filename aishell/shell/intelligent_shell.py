@@ -23,6 +23,7 @@ from aishell.llm import (
     OllamaLLMProvider,
     GeminiLLMProvider,
     OpenRouterLLMProvider,
+    Conversation,
 )
 from aishell.mcp import MCPClient, MCPMessage, NLToMCPTranslator
 from aishell.utils import (
@@ -253,6 +254,10 @@ class IntelligentShell:
             command == "env" or command.startswith("env ")
         ):
             return self._handle_env(command)
+        elif command.startswith("chat") and (
+            command == "chat" or command.startswith("chat ")
+        ):
+            return self._handle_chat(command)
 
         # Default to LLM command if no other built-in matches
         # Check if it looks like a natural language query
@@ -270,6 +275,7 @@ class IntelligentShell:
                 "exit",
                 "quit",
                 "env",
+                "chat",
             ]
         ):
             # Try as LLM command with the entire input as query
@@ -510,6 +516,7 @@ class IntelligentShell:
             ("clear/cls", "Clear the screen"),
             ('llm "query"', "Query an LLM provider"),
             ('collate "query"', "Collate responses across LLM providers"),
+            ("chat [provider]", "Start interactive multi-turn chat"),
             ("mcp <url> <cmd>", "Interact with MCP servers"),
             ("generate <lang> <desc>", "Generate code in specified language"),
             ("env <subcommand>", "Manage environment variables and MCP servers"),
@@ -615,7 +622,11 @@ Please consider whether any of the available MCP tools could help with this requ
         try:
             parts = shlex.split(command)
             if len(parts) < 2:
-                return 1, "", 'Usage: llm [provider] "query" [--stream]'
+                return (
+                    1,
+                    "",
+                    'Usage: llm [provider] "query" [--stream] [--research]',
+                )
 
             # Parse new syntax: llm [provider] "query"
             valid_providers = ["claude", "openai", "ollama", "gemini", "openrouter"]
@@ -664,12 +675,16 @@ Please consider whether any of the available MCP tools could help with this requ
                 console.print(f"[blue]Using default provider: {provider_name}[/blue]")
 
             stream = False
+            research = False
 
             # Parse remaining options
             i = options_start
             while i < len(parts):
                 if parts[i] == "--stream":
                     stream = True
+                    i += 1
+                elif parts[i] == "--research" or parts[i] == "-r":
+                    research = True
                     i += 1
                 else:
                     i += 1
@@ -718,6 +733,16 @@ Please consider whether any of the available MCP tools could help with this requ
             # Enhance query with MCP context if relevant
             enhanced_query = self._enhance_query_with_mcp_context(query)
 
+            # Show research mode notice
+            if research and provider_name == "gemini":
+                console.print(
+                    "[blue]Mode:[/blue] Deep Research (Google Search grounding)"
+                )
+            elif research and provider_name != "gemini":
+                console.print(
+                    "[yellow]Warning:[/yellow] --research is only supported with Gemini"
+                )
+
             # Run the query
             async def run_query():
                 transcript = get_transcript_manager()
@@ -738,10 +763,15 @@ Please consider whether any of the available MCP tools could help with this requ
                         model=provider.default_model,
                     )
                 else:
+                    # Build query kwargs
+                    query_kwargs = {}
+                    if research and provider_name == "gemini":
+                        query_kwargs["research"] = True
+
                     with console.status(
                         f"[yellow]Querying {provider_name}...[/yellow]"
                     ):
-                        response = await provider.query(enhanced_query)
+                        response = await provider.query(enhanced_query, **query_kwargs)
 
                     if response.is_error:
                         console.print(f"[red]Error:[/red] {response.error}")
@@ -767,6 +797,19 @@ Please consider whether any of the available MCP tools could help with this requ
                             console.print(
                                 f"[dim]Tokens: {response.usage.get('total_tokens', 'N/A')}[/dim]"
                             )
+
+                        # Show research metadata if available
+                        if response.metadata and response.metadata.get("grounded"):
+                            console.print()
+                            console.print("[blue]Research Sources:[/blue]")
+                            if "search_queries" in response.metadata:
+                                console.print("  [dim]Search queries:[/dim]")
+                                for sq in response.metadata["search_queries"]:
+                                    console.print(f"    - {sq}")
+                            if "grounding_chunks" in response.metadata:
+                                console.print(
+                                    f"  [dim]Sources:[/dim] {response.metadata['grounding_chunks']}"
+                                )
 
                         # Log successful response to transcript (use original query for logging)
                         transcript.log_interaction(
@@ -1263,3 +1306,193 @@ Examples:
 
         except Exception as e:
             return 1, "", f"Env error: {str(e)}"
+
+    def _handle_chat(self, command: str) -> Tuple[int, str, str]:
+        """Handle interactive multi-turn chat sessions."""
+        try:
+            parts = shlex.split(command)
+
+            # Parse options
+            provider_name = None
+            resume_id = None
+            system_prompt = None
+
+            i = 1
+            while i < len(parts):
+                if parts[i] == "--resume" and i + 1 < len(parts):
+                    resume_id = parts[i + 1]
+                    i += 2
+                elif parts[i] == "--system" and i + 1 < len(parts):
+                    system_prompt = parts[i + 1]
+                    i += 2
+                elif not parts[i].startswith("-"):
+                    provider_name = parts[i]
+                    i += 1
+                else:
+                    i += 1
+
+            # Default provider
+            env_manager = get_env_manager()
+            valid_providers = ["claude", "openai", "ollama", "gemini"]
+
+            if provider_name is None:
+                provider_name = "openai"
+            elif provider_name.lower() not in valid_providers:
+                return (
+                    1,
+                    "",
+                    f"Unknown provider: {provider_name}. Available: {', '.join(valid_providers)}",
+                )
+            else:
+                provider_name = provider_name.lower()
+
+            # Get provider config
+            config = env_manager.get_llm_config(provider_name)
+
+            # Create LLM provider
+            if provider_name == "claude":
+                llm = ClaudeLLMProvider(
+                    api_key=config.get("api_key"),
+                    base_url=config.get("base_url"),
+                )
+            elif provider_name == "openai":
+                llm = OpenAILLMProvider(
+                    api_key=config.get("api_key"),
+                    base_url=config.get("base_url"),
+                )
+            elif provider_name == "ollama":
+                llm = OllamaLLMProvider(base_url=config.get("base_url"))
+            elif provider_name == "gemini":
+                llm = GeminiLLMProvider(
+                    api_key=config.get("api_key"),
+                    base_url=config.get("base_url"),
+                )
+
+            model_name = llm.default_model
+
+            # Load or create conversation
+            if resume_id:
+                try:
+                    conversation = Conversation.load(resume_id)
+                    console.print(
+                        f"[green]Resumed conversation:[/green] {resume_id[:8]}..."
+                    )
+                    console.print(
+                        f"[dim]Messages loaded: {len(conversation.messages)}[/dim]"
+                    )
+                except ValueError as e:
+                    return 1, "", str(e)
+            else:
+                conversation = Conversation(
+                    provider=provider_name,
+                    model=model_name,
+                    system_prompt=system_prompt,
+                )
+                console.print(
+                    f"[green]Started new conversation:[/green] {conversation.conversation_id[:8]}..."
+                )
+
+            console.print(f"[blue]Provider:[/blue] {provider_name}")
+            console.print(f"[blue]Model:[/blue] {model_name}")
+            if system_prompt:
+                console.print(f"[blue]System:[/blue] {system_prompt[:50]}...")
+            console.print()
+            console.print("[dim]Commands: /exit, /history, /id, /clear[/dim]")
+            console.print()
+
+            # Chat loop
+            async def run_chat_loop():
+                while True:
+                    try:
+                        user_input = Prompt.ask("[cyan]You[/cyan]")
+
+                        if not user_input:
+                            continue
+
+                        # Handle commands
+                        if user_input.startswith("/"):
+                            cmd = user_input.lower()
+
+                            if cmd in ["/exit", "/quit", "/q"]:
+                                console.print("[dim]Conversation ended.[/dim]")
+                                console.print(
+                                    f"[dim]Conversation ID: {conversation.conversation_id}[/dim]"
+                                )
+                                break
+
+                            elif cmd == "/history":
+                                console.print()
+                                for msg in conversation.messages:
+                                    role_color = (
+                                        "cyan"
+                                        if msg.role == "user"
+                                        else (
+                                            "green"
+                                            if msg.role == "assistant"
+                                            else "yellow"
+                                        )
+                                    )
+                                    console.print(
+                                        f"[{role_color}]{msg.role.title()}:[/{role_color}]"
+                                    )
+                                    console.print(f"  {msg.content[:100]}...")
+                                    console.print()
+                                continue
+
+                            elif cmd == "/id":
+                                console.print(
+                                    f"[blue]Conversation ID:[/blue] {conversation.conversation_id}"
+                                )
+                                continue
+
+                            elif cmd == "/clear":
+                                conversation.clear()
+                                console.print(
+                                    "[dim]Conversation cleared (database preserved)[/dim]"
+                                )
+                                continue
+
+                            else:
+                                console.print(
+                                    f"[yellow]Unknown command:[/yellow] {cmd}"
+                                )
+                                console.print(
+                                    "[dim]Available: /exit, /history, /id, /clear[/dim]"
+                                )
+                                continue
+
+                        # Add user message
+                        conversation.add_user_message(user_input)
+
+                        # Get response
+                        with console.status(
+                            "[yellow]Thinking...[/yellow]", spinner="dots"
+                        ):
+                            response = await llm.chat(
+                                conversation.get_messages(),
+                                model=model_name,
+                            )
+
+                        if response.is_error:
+                            console.print(f"[red]Error:[/red] {response.error}")
+                            # Remove the user message since we couldn't get a response
+                            conversation.messages.pop()
+                        else:
+                            # Add assistant response
+                            conversation.add_assistant_message(response.content)
+                            console.print()
+                            console.print(f"[green]Assistant:[/green]")
+                            console.print(response.content)
+                            console.print()
+
+                    except KeyboardInterrupt:
+                        console.print("\n[dim]Use /exit to end the conversation[/dim]")
+                    except EOFError:
+                        console.print("\n[dim]Conversation ended.[/dim]")
+                        break
+
+            asyncio.run(run_chat_loop())
+            return 0, "", ""
+
+        except Exception as e:
+            return 1, "", f"Chat error: {str(e)}"

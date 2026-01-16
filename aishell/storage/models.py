@@ -72,3 +72,32 @@ class StoredError:
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "session_id": self.session_id,
         }
+
+
+@dataclass
+class ConversationMessage:
+    """A message in a multi-turn conversation."""
+
+    conversation_id: str
+    provider: str
+    model: str
+    role: str  # 'user', 'assistant', 'system'
+    content: str
+    start_id: Optional[int] = None  # ID of first message in thread
+    parent_id: Optional[int] = None  # Previous message ID
+    created_at: datetime = field(default_factory=datetime.now)
+    id: Optional[int] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "id": self.id,
+            "conversation_id": self.conversation_id,
+            "provider": self.provider,
+            "model": self.model,
+            "role": self.role,
+            "content": self.content,
+            "start_id": self.start_id,
+            "parent_id": self.parent_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 import threading
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS responses (
@@ -35,6 +35,19 @@ CREATE TABLE IF NOT EXISTS response_metadata (
     FOREIGN KEY (response_id) REFERENCES responses(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    start_id INTEGER,
+    parent_id INTEGER,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_id) REFERENCES conversations(id)
+);
+
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY
 );
@@ -47,6 +60,10 @@ CREATE INDEX IF NOT EXISTS idx_error_responses_created_at ON error_responses(cre
 CREATE INDEX IF NOT EXISTS idx_error_responses_session_id ON error_responses(session_id);
 CREATE INDEX IF NOT EXISTS idx_metadata_response_id ON response_metadata(response_id);
 CREATE INDEX IF NOT EXISTS idx_metadata_key ON response_metadata(key);
+CREATE INDEX IF NOT EXISTS idx_conv_conversation_id ON conversations(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_conv_provider ON conversations(provider);
+CREATE INDEX IF NOT EXISTS idx_conv_start_id ON conversations(start_id);
+CREATE INDEX IF NOT EXISTS idx_conv_parent_id ON conversations(parent_id);
 """
 
 
@@ -178,6 +195,9 @@ class Database:
                 conn.execute("ALTER TABLE responses_new RENAME TO responses")
 
                 conn.commit()
+
+        # Migration v2 -> v3: Add conversations table
+        # No migration needed - table will be created by SCHEMA_SQL
 
     def close(self) -> None:
         """Close the current thread's connection."""

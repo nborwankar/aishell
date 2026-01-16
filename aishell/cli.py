@@ -14,6 +14,7 @@ from aishell.llm import (
     OpenAILLMProvider,
     OllamaLLMProvider,
     GeminiLLMProvider,
+    Conversation,
 )
 from aishell.mcp import MCPClient, MCPMessage, NLToMCPTranslator
 from aishell.utils import get_transcript_manager, load_env_on_startup
@@ -205,8 +206,22 @@ def shell(no_history, config, nl_provider, ollama_model, anthropic_api_key):
 @click.option("--api-key", envvar="LLM_API_KEY", help="API key for the provider")
 @click.option("--ollama-url", default="http://localhost:11434", help="Ollama API URL")
 @click.option("--openai-url", help="OpenAI-compatible API URL")
+@click.option(
+    "--research",
+    "-r",
+    is_flag=True,
+    help="Enable deep research with Google Search grounding (Gemini only)",
+)
 def llm(
-    provider, query, temperature, max_tokens, stream, api_key, ollama_url, openai_url
+    provider,
+    query,
+    temperature,
+    max_tokens,
+    stream,
+    api_key,
+    ollama_url,
+    openai_url,
+    research,
 ):
     """Send a query to a single LLM provider.
 
@@ -215,6 +230,7 @@ def llm(
         aishell llm openai "Explain quantum computing"
         aishell llm "Hello" --stream  # Uses default provider
         aishell llm gemini "Tell me a joke" --temperature 0.9
+        aishell llm gemini "Latest AI developments" --research
     """
     query_str = " ".join(query)
 
@@ -336,6 +352,12 @@ Please consider whether any of the available MCP tools could help with this requ
 
         console.print(f"[blue]Provider:[/blue] {provider_name}")
         console.print(f"[blue]Model:[/blue] {llm.default_model} (default)")
+        if research and provider_name == "gemini":
+            console.print("[blue]Mode:[/blue] Deep Research (Google Search grounding)")
+        elif research and provider_name != "gemini":
+            console.print(
+                "[yellow]Warning:[/yellow] --research is only supported with Gemini"
+            )
         console.print()
 
         if stream:
@@ -363,9 +385,15 @@ Please consider whether any of the available MCP tools could help with this requ
         else:
             # Regular response
             with console.status("[yellow]Thinking...[/yellow]", spinner="dots"):
-                response = await llm.query(
-                    enhanced_query, temperature=temperature, max_tokens=max_tokens
-                )
+                # Pass research flag to Gemini queries
+                query_kwargs = {
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+                if research and provider_name == "gemini":
+                    query_kwargs["research"] = True
+
+                response = await llm.query(enhanced_query, **query_kwargs)
 
             if response.is_error:
                 console.print(f"[red]Error:[/red] {response.error}")
@@ -394,6 +422,19 @@ Please consider whether any of the available MCP tools could help with this requ
                     console.print("[dim]Usage:[/dim]")
                     for key, value in response.usage.items():
                         console.print(f"  [dim]{key}:[/dim] {value}")
+
+                # Show research/grounding metadata if available
+                if response.metadata and response.metadata.get("grounded"):
+                    console.print()
+                    console.print("[blue]Research Sources:[/blue]")
+                    if "search_queries" in response.metadata:
+                        console.print("  [dim]Search queries:[/dim]")
+                        for sq in response.metadata["search_queries"]:
+                            console.print(f"    - {sq}")
+                    if "grounding_chunks" in response.metadata:
+                        console.print(
+                            f"  [dim]Sources used:[/dim] {response.metadata['grounding_chunks']}"
+                        )
 
                 # Log successful response to transcript
                 transcript.log_interaction(
@@ -782,6 +823,245 @@ def search_errors(provider, hours, limit, output_json, db):
         )
 
     console.print(error_table)
+
+
+@main.command()
+@click.argument("provider", required=False, default="openai")
+@click.option("--resume", "-r", help="Resume an existing conversation by ID")
+@click.option("--system", "-s", help="System prompt for the conversation")
+@click.option("--model", "-m", help="Model to use")
+@click.option("--temperature", "-t", default=0.7, help="Temperature for sampling")
+@click.option("--max-tokens", default=None, type=int, help="Maximum tokens to generate")
+def chat(provider, resume, system, model, temperature, max_tokens):
+    """Start an interactive multi-turn chat session.
+
+    Conversations are stored in the database with full history.
+
+    Examples:
+        aishell chat                    # Start chat with OpenAI (default)
+        aishell chat openai             # Start chat with OpenAI
+        aishell chat claude             # Start chat with Claude
+        aishell chat --resume abc123    # Resume existing conversation
+        aishell chat --system "You are a helpful coding assistant"
+    """
+    from prompt_toolkit import prompt
+    from prompt_toolkit.history import InMemoryHistory
+
+    async def run_chat():
+        from aishell.utils import get_env_manager
+
+        env_manager = get_env_manager()
+
+        # Determine provider
+        provider_name = provider.lower() if provider else "openai"
+        valid_providers = ["claude", "openai", "ollama", "gemini"]
+
+        if provider_name not in valid_providers:
+            console.print(
+                f"[red]Error: Unknown provider '{provider_name}'. "
+                f"Available: {', '.join(valid_providers)}[/red]"
+            )
+            return
+
+        # Get provider config
+        config = env_manager.get_llm_config(provider_name)
+
+        # Create LLM provider
+        if provider_name == "claude":
+            llm = ClaudeLLMProvider(
+                api_key=config.get("api_key"),
+                base_url=config.get("base_url"),
+            )
+        elif provider_name == "openai":
+            llm = OpenAILLMProvider(
+                api_key=config.get("api_key"),
+                base_url=config.get("base_url"),
+            )
+        elif provider_name == "ollama":
+            llm = OllamaLLMProvider(base_url=config.get("base_url"))
+        elif provider_name == "gemini":
+            llm = GeminiLLMProvider(
+                api_key=config.get("api_key"),
+                base_url=config.get("base_url"),
+            )
+
+        model_name = model or llm.default_model
+
+        # Load or create conversation
+        if resume:
+            try:
+                conversation = Conversation.load(resume)
+                console.print(f"[green]Resumed conversation:[/green] {resume[:8]}...")
+                console.print(
+                    f"[dim]Messages loaded: {len(conversation.messages)}[/dim]"
+                )
+            except ValueError as e:
+                console.print(f"[red]Error:[/red] {e}")
+                return
+        else:
+            conversation = Conversation(
+                provider=provider_name,
+                model=model_name,
+                system_prompt=system,
+            )
+            console.print(
+                f"[green]Started new conversation:[/green] {conversation.conversation_id[:8]}..."
+            )
+
+        console.print(f"[blue]Provider:[/blue] {provider_name}")
+        console.print(f"[blue]Model:[/blue] {model_name}")
+        if system:
+            console.print(f"[blue]System:[/blue] {system[:50]}...")
+        console.print()
+        console.print("[dim]Commands: /exit, /history, /id, /clear[/dim]")
+        console.print()
+
+        # Chat loop
+        history = InMemoryHistory()
+
+        while True:
+            try:
+                user_input = prompt("You: ", history=history).strip()
+
+                if not user_input:
+                    continue
+
+                # Handle commands
+                if user_input.startswith("/"):
+                    cmd = user_input.lower()
+
+                    if cmd in ["/exit", "/quit", "/q"]:
+                        console.print("[dim]Conversation ended.[/dim]")
+                        console.print(
+                            f"[dim]Conversation ID: {conversation.conversation_id}[/dim]"
+                        )
+                        break
+
+                    elif cmd == "/history":
+                        console.print()
+                        for msg in conversation.messages:
+                            role_color = (
+                                "cyan"
+                                if msg.role == "user"
+                                else "green" if msg.role == "assistant" else "yellow"
+                            )
+                            console.print(
+                                f"[{role_color}]{msg.role.title()}:[/{role_color}]"
+                            )
+                            console.print(f"  {msg.content[:100]}...")
+                            console.print()
+                        continue
+
+                    elif cmd == "/id":
+                        console.print(
+                            f"[blue]Conversation ID:[/blue] {conversation.conversation_id}"
+                        )
+                        continue
+
+                    elif cmd == "/clear":
+                        conversation.clear()
+                        console.print(
+                            "[dim]Conversation cleared (database preserved)[/dim]"
+                        )
+                        continue
+
+                    else:
+                        console.print(f"[yellow]Unknown command:[/yellow] {cmd}")
+                        console.print(
+                            "[dim]Available: /exit, /history, /id, /clear[/dim]"
+                        )
+                        continue
+
+                # Add user message
+                conversation.add_user_message(user_input)
+
+                # Get response
+                with console.status("[yellow]Thinking...[/yellow]", spinner="dots"):
+                    response = await llm.chat(
+                        conversation.get_messages(),
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
+
+                if response.is_error:
+                    console.print(f"[red]Error:[/red] {response.error}")
+                    # Remove the user message we just added since we couldn't get a response
+                    conversation.messages.pop()
+                else:
+                    # Add assistant response
+                    conversation.add_assistant_message(response.content)
+                    console.print()
+                    console.print(f"[green]Assistant:[/green]")
+                    console.print(response.content)
+                    console.print()
+
+            except KeyboardInterrupt:
+                console.print("\n[dim]Use /exit to end the conversation[/dim]")
+            except EOFError:
+                console.print("\n[dim]Conversation ended.[/dim]")
+                break
+
+    asyncio.run(run_chat())
+
+
+@main.command(name="conversations")
+@click.option("--provider", "-p", help="Filter by provider")
+@click.option("--limit", "-l", default=20, help="Maximum conversations to show")
+@click.option("--json", "output_json", is_flag=True, help="Output as JSON")
+@click.option("--db", type=click.Path(), help="Override database path")
+def list_conversations(provider, limit, output_json, db):
+    """List recent conversations.
+
+    Examples:
+        aishell conversations
+        aishell conversations --provider openai
+        aishell conversations --limit 10 --json
+    """
+    from aishell.storage import get_storage_manager
+
+    try:
+        storage = get_storage_manager(db)
+    except Exception as e:
+        console.print(f"[red]Error opening database:[/red] {e}")
+        return
+
+    console.print(f"[dim]Database: {storage.db_path}[/dim]")
+
+    conversations = storage.list_conversations(provider=provider, limit=limit)
+
+    if output_json:
+        import json
+
+        console.print(json.dumps(conversations, indent=2, default=str))
+        return
+
+    if not conversations:
+        console.print("[yellow]No conversations found[/yellow]")
+        return
+
+    console.print(f"[blue]Found {len(conversations)} conversation(s)[/blue]")
+    console.print()
+
+    conv_table = Table(title="Recent Conversations", show_lines=True)
+    conv_table.add_column("ID", style="dim", width=10)
+    conv_table.add_column("Provider", style="blue", width=10)
+    conv_table.add_column("Model", style="cyan", width=15)
+    conv_table.add_column("Messages", style="green", width=8)
+    conv_table.add_column("Started", style="dim", width=16)
+    conv_table.add_column("Preview", style="white", width=35, no_wrap=True)
+
+    for conv in conversations:
+        conv_table.add_row(
+            conv["conversation_id"][:8] + "...",
+            conv["provider"],
+            conv["model"][:15] if len(conv["model"]) > 15 else conv["model"],
+            str(conv["message_count"]),
+            conv["started_at"][:16] if conv["started_at"] else "N/A",
+            conv["preview"],
+        )
+
+    console.print(conv_table)
 
 
 @main.command()
