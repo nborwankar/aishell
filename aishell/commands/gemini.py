@@ -119,6 +119,49 @@ def _chrome_launch(port=CHROME_DEBUG_PORT):
 # ── Extraction helpers ────────────────────────────────────────────────
 
 
+def _expand_sidebar(page):
+    """Expand the Gemini sidebar if it's collapsed."""
+    expanded = page.evaluate(
+        """() => {
+        // Try multiple selectors for the sidebar toggle
+        const selectors = [
+            'button[aria-label*="menu" i]',
+            'button[aria-label*="sidebar" i]',
+            'button[aria-label*="navigation" i]',
+            'button[aria-label*="open" i][aria-label*="nav" i]',
+            'button[data-panel-id]',
+            '[role="navigation"] button',
+            'mat-icon-button[aria-label]',
+        ];
+        for (const sel of selectors) {
+            const btn = document.querySelector(sel);
+            if (btn) {
+                btn.click();
+                return {found: true, selector: sel, label: btn.getAttribute('aria-label') || ''};
+            }
+        }
+        // Fallback: look for any button whose aria-label contains "menu"
+        const allBtns = document.querySelectorAll('button');
+        for (const btn of allBtns) {
+            const label = (btn.getAttribute('aria-label') || '').toLowerCase();
+            if (label.includes('menu') || label.includes('sidebar') || label.includes('navigation')) {
+                btn.click();
+                return {found: true, selector: 'fallback', label: btn.getAttribute('aria-label') || ''};
+            }
+        }
+        return {found: false, selector: null, label: null};
+    }"""
+    )
+    if expanded["found"]:
+        logger.info(
+            f"Sidebar toggle clicked: {expanded['label']} ({expanded['selector']})"
+        )
+        time.sleep(2)  # Wait for sidebar animation
+    else:
+        logger.info("No sidebar toggle found — sidebar may already be expanded")
+    return expanded["found"]
+
+
 def _enumerate_conversations(page):
     """Find all conversation links in the Gemini sidebar."""
     return page.evaluate(
@@ -131,9 +174,13 @@ def _enumerate_conversations(page):
             const match = href.match(/\\/app\\/([a-f0-9]{10,})/);
             if (match && !seen.has(match[1])) {
                 seen.add(match[1]);
+                const title = a.innerText.trim()
+                    || a.getAttribute('aria-label') || ''
+                    || a.getAttribute('title') || ''
+                    || a.closest('[aria-label]')?.getAttribute('aria-label') || '';
                 results.push({
                     source_id: match[1],
-                    title: a.innerText.trim().substring(0, 200),
+                    title: title.substring(0, 200),
                     href: href
                 });
             }
@@ -616,6 +663,9 @@ def pull(max_count, resume, dry_run, delay):
                 page.close()
                 browser.close()
                 return
+
+            # Expand sidebar if collapsed
+            _expand_sidebar(page)
 
             # Enumerate conversations
             console.print("[blue]Enumerating conversations in sidebar...[/blue]")
