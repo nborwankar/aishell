@@ -1005,18 +1005,18 @@ def chat(provider, resume, system, model, temperature, max_tokens):
     asyncio.run(run_chat())
 
 
-@main.command(name="conversations")
+@main.command(name="llm-chats")
 @click.option("--provider", "-p", help="Filter by provider")
 @click.option("--limit", "-l", default=20, help="Maximum conversations to show")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--db", type=click.Path(), help="Override database path")
 def list_conversations(provider, limit, output_json, db):
-    """List recent conversations.
+    """List recent interactive LLM chat sessions.
 
     Examples:
-        aishell conversations
-        aishell conversations --provider openai
-        aishell conversations --limit 10 --json
+        aishell llm-chats
+        aishell llm-chats --provider openai
+        aishell llm-chats --limit 10 --json
     """
     from aishell.storage import get_storage_manager
 
@@ -1552,8 +1552,14 @@ def navigate(
 
 
 from aishell.commands.gemini import gemini
+from aishell.commands.conversations.cli import conversations
+from aishell.commands.chatgpt import chatgpt
+from aishell.commands.claude_export import claude_export
 
 main.add_command(gemini)
+main.add_command(conversations)
+main.add_command(chatgpt)
+main.add_command(claude_export, "claude")
 
 
 if __name__ == "__main__":
