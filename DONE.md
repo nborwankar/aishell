@@ -1,5 +1,82 @@
 # DONE - Development Log
 
+## Multi-Provider Conversation Architecture - 2026-02-11
+
+### Overview
+Refactored the monolithic `gemini.py` (~900 lines) into a multi-provider architecture. Extracted shared code (schema, DB, embeddings, manifest) into a `conversations/` package, slimmed Gemini to Chrome/CDP-only, and added ChatGPT and Claude ZIP importers. Unified `load` and `search` under a shared `conversations` command group.
+
+### New CLI Structure
+```bash
+# Provider-specific ingestion
+aishell gemini login                     # Browser sign-in (unchanged)
+aishell gemini pull [--dry-run] [--max]  # Browser scraping (unchanged)
+aishell chatgpt import <zip_path>        # Parse ChatGPT data export ZIP
+aishell claude import <zip_path>         # Parse Claude data export ZIP
+
+# Shared operations (all providers, one DB)
+aishell conversations load [--provider X] [--skip-embeddings] [--db NAME]
+aishell conversations search "query" [--limit N] [--source X] [--db NAME]
+
+# Renamed (was "aishell conversations")
+aishell llm-chats                        # List interactive chat sessions
+```
+
+### Architecture
+```
+aishell/commands/
+├── conversations/            # Shared export infrastructure
+│   ├── __init__.py           # Re-exports
+│   ├── schema.py             # slugify, generate_conv_id, ROLE_MAP, convert_to_schema()
+│   ├── db.py                 # ensure_database, load_conversation, SCHEMA_SQL
+│   ├── embeddings.py         # get_model, embed_texts (nomic-embed-text-v1.5)
+│   ├── manifest.py           # load_manifest, save_manifest, already_exported
+│   └── cli.py                # Click group: conversations load, conversations search
+├── gemini.py                 # SLIMMED: Chrome/CDP, DOM scraping, login, pull only
+├── chatgpt.py                # NEW: chatgpt import <zip> (tree traversal)
+└── claude_export.py          # NEW: claude import <zip> (linear messages)
+```
+
+Data directories:
+```
+~/.aishell/gemini/conversations/    # (already exists from pull)
+~/.aishell/chatgpt/conversations/   # Created by chatgpt import
+~/.aishell/claude/conversations/    # Created by claude import
+```
+
+### Key Design Decisions
+- **No abstract base class**: Providers don't share a runtime interface (Gemini=browser, ChatGPT/Claude=ZIP). Shared `conversations` package is a flat utility library.
+- **ChatGPT tree traversal**: Follows `children[-1]` at each node for the canonical path, skips system messages, joins `content.parts`.
+- **Claude linear parsing**: Iterates `chat_messages` array, maps `sender` ("human"→"user", "assistant"→"assistant").
+- **Unified search**: `conversations search` queries all providers by default, `--source` filters to one.
+- **Unified load**: `conversations load` scans all `~/.aishell/*/conversations/` dirs, `--provider` filters to one.
+
+### Git Commit
+- `b35cdd8` — refactor: Extract shared conversation code into multi-provider architecture
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `commands/conversations/__init__.py` | **New** — re-exports |
+| `commands/conversations/schema.py` | **New** — slugify, conv_id, ROLE_MAP, convert_to_schema |
+| `commands/conversations/db.py` | **New** — ensure_database, load_conversation, SCHEMA_SQL |
+| `commands/conversations/embeddings.py` | **New** — get_model, embed_texts |
+| `commands/conversations/manifest.py` | **New** — load/save manifest, already_exported |
+| `commands/conversations/cli.py` | **New** — conversations group with load + search |
+| `commands/gemini.py` | **Slimmed** ~900→~580 lines, imports from conversations |
+| `commands/chatgpt.py` | **New** — chatgpt group with import command |
+| `commands/claude_export.py` | **New** — claude group with import command |
+| `cli.py` | Renamed conversations→llm-chats, registered 3 new groups |
+
+### Verification
+- ✅ `gemini --help` → shows only `login` and `pull`
+- ✅ `conversations --help` → shows `load` and `search`
+- ✅ `chatgpt --help` → shows `import`
+- ✅ `claude --help` → shows `import`
+- ✅ `llm-chats --help` → old command works under new name
+- ✅ All module imports verified
+
+---
+
 ## Gemini Conversation Export & Semantic Search - 2026-02-11
 
 ### Overview
@@ -9,8 +86,8 @@ Added `gemini` command group to aishell for exporting, storing, and searching Ge
 ```bash
 aishell gemini login        # Launch Chrome for Google sign-in
 aishell gemini pull         # Download conversations via Playwright + CDP
-aishell gemini load         # Load into PostgreSQL with nomic embeddings
-aishell gemini search "q"   # Semantic search via pgvector cosine similarity
+aishell gemini load         # Load into PostgreSQL with nomic embeddings (now: conversations load)
+aishell gemini search "q"   # Semantic search via pgvector (now: conversations search)
 ```
 
 ### Architecture
