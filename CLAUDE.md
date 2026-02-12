@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**aishell** is an intelligent command line tool built in Python that provides web search, intelligent shell capabilities, and file system search using macOS native tools.
+**aishell** is an intelligent command line tool built in Python that provides web search, intelligent shell capabilities, file system search using macOS native tools, and conversation export/search from LLM providers (Gemini).
 
 ## Development Commands
 
@@ -36,6 +36,9 @@ aishell --help
 aishell/
 ├── __init__.py           # Package metadata
 ├── cli.py               # Main CLI entry point with Click commands
+├── commands/            # Command group modules
+│   ├── __init__.py
+│   └── gemini.py        # Gemini export: login, pull, load, search (~900 lines)
 ├── search/              # Search functionality
 │   ├── __init__.py
 │   ├── web_search.py    # Playwright-based web search (Google, DuckDuckGo)
@@ -51,6 +54,11 @@ aishell/
 
 config/                  # Configuration templates
 scripts/                 # Helper scripts
+
+~/.aishell/gemini/       # Gemini export data (created at runtime)
+├── raw/                 # Raw DOM extraction JSONs
+├── conversations/       # Schema-compliant JSONs + manifest.json
+└── scan.json            # Latest dry-run scan results
 ```
 
 ## Key Features Implemented
@@ -69,6 +77,13 @@ scripts/                 # Helper scripts
 5. **Environment Management**: .env file loading and management with `env` command
 6. **Transcript Logging**: Persistent logging of all LLM interactions
 
+### Gemini Export (2026-02)
+1. **Login**: Launch Chrome with debug profile for Google sign-in
+2. **Pull**: Batch-extract conversations via Playwright + CDP with sidebar expansion
+3. **Load**: Auto-provision PostgreSQL + pgvector, embed with nomic-embed-text-v1.5 (768-dim)
+4. **Search**: Semantic search across all turns via cosine similarity
+5. **Scan Export**: `pull --dry-run` saves scan.json for sizing assessment
+
 ## Important Implementation Notes
 
 - **macOS Focused**: File search optimized for macOS using `mdfind`, `find`, `grep`, `mdls`
@@ -78,6 +93,16 @@ scripts/                 # Helper scripts
 - **Environment Configuration**: .env file loading on startup with reload capability
 - **Transcript Logging**: All LLM interactions logged to LLMTranscript.md with errors in LLMErrors.md
 - **Native Tools**: Leverages system tools rather than pure Python for performance
+
+### Gemini Export Notes
+- **Chrome**: Requires `~/chromeuserdata` profile dir and port 9222 for CDP
+- **Wait Strategy**: Uses `domcontentloaded` (not `networkidle` — Gemini keeps WebSocket open)
+- **Sidebar**: Auto-expands collapsed sidebar via "Main menu" button click before enumeration
+- **DOM Extraction**: 4 strategies (web-components → conversation-turn → data-message-id → fallback)
+- **Text Cleanup**: Strips "You said\n" / "Gemini said\n" prefixes from scraped content
+- **Slug Collisions**: Duplicate titles get source_id[:8] suffix appended
+- **Embedding Prefixes**: nomic model requires `search_document:` for storage, `search_query:` for queries
+- **Database**: PostgreSQL `conversation_export` with pgvector HNSW index, auto-provisioned by `load`
 
 ## Development Workflow
 
@@ -89,6 +114,7 @@ scripts/                 # Helper scripts
 ## Dependencies
 
 - **Core**: click, rich, requests
-- **Web**: playwright, beautifulsoup4, lxml  
+- **Web**: playwright, beautifulsoup4, lxml
 - **NL (Optional)**: anthropic, requests (for Ollama)
+- **Gemini Export**: psycopg2-binary, sentence-transformers
 - **Dev**: pytest, black, flake8, mypy
