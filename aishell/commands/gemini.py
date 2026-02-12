@@ -646,7 +646,7 @@ def pull(max_count, resume, dry_run, delay):
             if max_count > 0:
                 conversations = conversations[:max_count]
 
-            # Dry run: list and exit
+            # Dry run: list, save scan, and exit
             if dry_run:
                 table = Table(title="Gemini Conversations")
                 table.add_column("#", style="dim", width=4)
@@ -654,16 +654,44 @@ def pull(max_count, resume, dry_run, delay):
                 table.add_column("Status", width=6)
                 table.add_column("Title", style="white")
 
+                scan_entries = []
                 for i, conv in enumerate(conversations, 1):
-                    status = (
-                        "[green]DONE[/green]"
-                        if _already_exported(conv["source_id"])
-                        else ""
-                    )
+                    exported = _already_exported(conv["source_id"])
+                    status = "[green]DONE[/green]" if exported else ""
                     table.add_row(str(i), conv["source_id"], status, conv["title"][:60])
+                    scan_entries.append(
+                        {
+                            "source_id": conv["source_id"],
+                            "title": conv["title"],
+                            "exported": exported,
+                        }
+                    )
+
+                already_count = sum(1 for e in scan_entries if e["exported"])
+                new_count = len(scan_entries) - already_count
 
                 console.print(table)
-                console.print(f"\nTotal: {len(conversations)} conversations")
+                console.print(
+                    f"\nTotal: {len(conversations)} conversations "
+                    f"({already_count} exported, {new_count} new)"
+                )
+
+                # Save scan results for sizing assessment
+                scan_path = os.path.join(DATA_DIR, "scan.json")
+                os.makedirs(DATA_DIR, exist_ok=True)
+                scan_data = {
+                    "scanned_at": datetime.now(timezone.utc).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    ),
+                    "total": len(scan_entries),
+                    "exported": already_count,
+                    "new": new_count,
+                    "conversations": scan_entries,
+                }
+                with open(scan_path, "w") as f:
+                    json.dump(scan_data, f, indent=2, ensure_ascii=False)
+                console.print(f"[dim]Scan saved: {scan_path}[/dim]")
+
                 page.close()
                 browser.close()
                 return
