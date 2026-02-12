@@ -1,5 +1,33 @@
 # DONE - Development Log
 
+## Full Conversation Pull — All Three Providers Complete - 2026-02-12
+
+### Results
+Successfully pulled all conversations from all three LLM providers with zero failures:
+
+| Provider | Total | Success | Failed | Skipped (empty) |
+|----------|-------|---------|--------|-----------------|
+| Gemini   | 33    | 33      | 0      | 0               |
+| ChatGPT  | 811   | 811     | 0      | 0               |
+| Claude   | 941   | 920     | 0      | 18              |
+| **Total**| **1,785** | **1,764** | **0** | **18**     |
+
+### ChatGPT Auth Fix
+ChatGPT's `/backend-api/` requires a Bearer token from `/api/auth/session`, not just cookies. Added `_get_access_token()` to fetch the token and pass it via `Authorization` header to all `fetch_json` calls.
+
+### Git Commit
+- `76dd966` — fix: Add Bearer token auth for ChatGPT backend API
+
+### JSONB Migration Plan
+Documented future architecture in `docs/JSONB_PLAN.md`:
+- Single `conversations_raw` table with `raw_data` (archival) + `turns` (queryable) JSONB columns
+- Unified view via `jsonb_array_elements` — no UNION needed since turns are pre-linearized by Python
+- Incremental update via `updated_at` comparison from API list endpoints
+- Full turn replacement for changed conversations (turn numbering not stable across edits)
+- `content_hash` on embeddings to avoid re-embedding unchanged turns
+
+---
+
 ## Browser-Based Login + Pull for ChatGPT and Claude, Gemini Import - 2026-02-11
 
 ### Overview

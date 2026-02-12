@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**aishell** is an intelligent command line tool built in Python that provides web search, intelligent shell capabilities, file system search using macOS native tools, and conversation export/search from LLM providers (Gemini).
+**aishell** is an intelligent command line tool built in Python that provides web search, intelligent shell capabilities, file system search using macOS native tools, and conversation export/search from LLM providers (Gemini, ChatGPT, Claude).
 
 ## Development Commands
 
@@ -38,7 +38,17 @@ aishell/
 ├── cli.py               # Main CLI entry point with Click commands
 ├── commands/            # Command group modules
 │   ├── __init__.py
-│   └── gemini.py        # Gemini export: login, pull, load, search (~900 lines)
+│   ├── gemini.py        # Gemini: login, pull, import (DOM scraping)
+│   ├── chatgpt.py       # ChatGPT: login, pull, import (API + ZIP)
+│   ├── claude_export.py # Claude: login, pull, import (API + ZIP)
+│   └── conversations/   # Shared export infrastructure
+│       ├── __init__.py
+│       ├── browser.py   # Chrome/CDP helpers, fetch_json, chrome_login
+│       ├── schema.py    # slugify, ROLE_MAP, convert_to_schema
+│       ├── manifest.py  # load/save manifest, already_exported
+│       ├── db.py        # PostgreSQL + pgvector setup
+│       ├── embeddings.py # nomic-embed-text-v1.5 wrapper
+│       └── cli.py       # conversations load + search commands
 ├── search/              # Search functionality
 │   ├── __init__.py
 │   ├── web_search.py    # Playwright-based web search (Google, DuckDuckGo)
@@ -54,9 +64,10 @@ aishell/
 
 config/                  # Configuration templates
 scripts/                 # Helper scripts
+docs/                    # Design docs (JSONB_PLAN.md, etc.)
 
-~/.aishell/gemini/       # Gemini export data (created at runtime)
-├── raw/                 # Raw DOM extraction JSONs
+~/.aishell/{gemini,chatgpt,claude}/  # Per-provider data (created at runtime)
+├── raw/                 # Raw API/DOM extraction JSONs
 ├── conversations/       # Schema-compliant JSONs + manifest.json
 └── scan.json            # Latest dry-run scan results
 ```
@@ -77,12 +88,21 @@ scripts/                 # Helper scripts
 5. **Environment Management**: .env file loading and management with `env` command
 6. **Transcript Logging**: Persistent logging of all LLM interactions
 
-### Gemini Export (2026-02)
-1. **Login**: Launch Chrome with debug profile for Google sign-in
-2. **Pull**: Batch-extract conversations via Playwright + CDP with sidebar expansion
-3. **Load**: Auto-provision PostgreSQL + pgvector, embed with nomic-embed-text-v1.5 (768-dim)
-4. **Search**: Semantic search across all turns via cosine similarity
-5. **Scan Export**: `pull --dry-run` saves scan.json for sizing assessment
+### Multi-Provider Conversation Export (2026-02)
+All three providers have a consistent `login` / `pull` / `import` interface:
+```bash
+aishell {gemini,chatgpt,claude} login       # Browser sign-in via Chrome CDP
+aishell {gemini,chatgpt,claude} pull        # Download conversations (browser API)
+aishell {gemini,chatgpt,claude} import      # Re-process from local files
+aishell conversations load                   # Load all providers into PostgreSQL
+aishell conversations search "query"         # Semantic search across all providers
+```
+
+**Approach**: ChatGPT and Claude use `fetch_json()` (page.evaluate + fetch with inherited cookies) to call internal APIs. Gemini uses DOM scraping. All produce the same schema.
+
+**Scale**: 1,764 conversations pulled (Gemini 33, ChatGPT 811, Claude 920), zero failures.
+
+**Next**: JSONB migration to unify storage in PostgreSQL (see `docs/JSONB_PLAN.md`).
 
 ## Important Implementation Notes
 
@@ -94,12 +114,14 @@ scripts/                 # Helper scripts
 - **Transcript Logging**: All LLM interactions logged to LLMTranscript.md with errors in LLMErrors.md
 - **Native Tools**: Leverages system tools rather than pure Python for performance
 
-### Gemini Export Notes
+### Conversation Export Notes
 - **Chrome**: Requires `~/chromeuserdata` profile dir and port 9222 for CDP
+- **Shared browser.py**: Chrome lifecycle, `fetch_json()`, `chrome_login()`, `check_auth()`
+- **ChatGPT auth**: Requires Bearer token from `/api/auth/session` (cookies alone insufficient)
+- **ChatGPT API**: `/backend-api/conversations` (paginated) + `/backend-api/conversation/{id}`
+- **Claude API**: `/api/organizations` (org_id) + `/api/organizations/{org_id}/chat_conversations`
+- **Gemini**: DOM scraping with 4 strategies (web-components → conversation-turn → data-message-id → fallback)
 - **Wait Strategy**: Uses `domcontentloaded` (not `networkidle` — Gemini keeps WebSocket open)
-- **Sidebar**: Auto-expands collapsed sidebar via "Main menu" button click before enumeration
-- **DOM Extraction**: 4 strategies (web-components → conversation-turn → data-message-id → fallback)
-- **Text Cleanup**: Strips "You said\n" / "Gemini said\n" prefixes from scraped content
 - **Slug Collisions**: Duplicate titles get source_id[:8] suffix appended
 - **Embedding Prefixes**: nomic model requires `search_document:` for storage, `search_query:` for queries
 - **Database**: PostgreSQL `conversation_export` with pgvector HNSW index, auto-provisioned by `load`
