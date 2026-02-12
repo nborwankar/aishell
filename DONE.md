@@ -1,21 +1,33 @@
 # DONE - Development Log
 
-## Browser-Based Login + Pull for ChatGPT and Claude - 2026-02-11
+## Browser-Based Login + Pull for ChatGPT and Claude, Gemini Import - 2026-02-11
 
 ### Overview
 Added browser-based `login` and `pull` commands to ChatGPT and Claude, matching Gemini's existing capability. Instead of DOM scraping, uses `page.evaluate()` with `fetch()` to call internal APIs from the authenticated browser context — giving clean JSON directly. Existing parsers (`_parse_chatgpt_conversation`, `_parse_claude_conversation`) work unchanged.
 
+Also added `gemini import` to re-process raw JSON files from `pull`, giving all three providers a consistent `login` / `pull` / `import` interface.
+
 ### New CLI Commands
 ```bash
-# ChatGPT (new)
+# All three providers now have the same interface:
+#   login  — Launch Chrome for sign-in
+#   pull   — Download conversations (browser-based)
+#   import — Re-process from local files (raw JSON or ZIP)
+
+# ChatGPT (new: login + pull)
 aishell chatgpt login                      # Launch Chrome for ChatGPT sign-in
 aishell chatgpt pull [--dry-run] [--max N] # Download via internal API
 aishell chatgpt import <zip_path>          # (existing, unchanged)
 
-# Claude (new)
+# Claude (new: login + pull)
 aishell claude login                       # Launch Chrome for Claude sign-in
 aishell claude pull [--dry-run] [--max N]  # Download via internal API
 aishell claude import <zip_path>           # (existing, unchanged)
+
+# Gemini (new: import)
+aishell gemini login                       # (existing, unchanged)
+aishell gemini pull [--dry-run] [--max N]  # (existing, unchanged)
+aishell gemini import [raw_path]           # Re-process raw JSON files from pull
 ```
 
 ### Architecture
@@ -27,7 +39,7 @@ aishell/commands/
 │   ├── schema.py            # (unchanged)
 │   ├── manifest.py          # (unchanged)
 │   └── ...
-├── gemini.py                # REFACTORED — Chrome helpers moved to browser.py
+├── gemini.py                # REFACTORED — Chrome helpers moved to browser.py, added import
 ├── chatgpt.py               # UPDATED — added login + pull commands
 └── claude_export.py         # UPDATED — added login + pull commands
 ```
@@ -37,11 +49,17 @@ aishell/commands/
 - **Shared `browser.py`**: Chrome lifecycle helpers extracted from `gemini.py` into `conversations/browser.py`. All three providers now share `chrome_login`, `chrome_launch`, `check_auth`, `fetch_json`.
 - **ChatGPT API**: Offset-based pagination via `/backend-api/conversations?offset=&limit=100&order=updated`, then detail via `/backend-api/conversation/{id}`.
 - **Claude API**: Requires org_id extraction via `/api/organizations`, then list via `/api/organizations/{org_id}/chat_conversations`, detail via `.../chat_conversations/{uuid}`.
+- **Gemini import**: Re-processes raw DOM extraction JSONs from `~/.aishell/gemini/raw/` (or user-specified path). Accepts single file, directory, or defaults to `raw/`. Looks up titles from existing manifest; falls back to `Gemini (<source_id>)`.
 - **Existing parsers untouched**: `_parse_chatgpt_conversation` (tree traversal) and `_parse_claude_conversation` (linear messages) work on both ZIP and API data.
 - **Raw response saving**: All API responses saved to `raw/` directory for debugging if parsers need adjustment.
 
 ### Data Directories (after pull)
 ```
+~/.aishell/gemini/
+├── raw/                    # Raw DOM extraction JSONs (from pull)
+├── conversations/          # Schema-compliant JSONs + manifest.json
+└── scan.json               # Dry-run scan results
+
 ~/.aishell/chatgpt/
 ├── raw/                    # Raw API responses
 ├── conversations/          # Schema-compliant JSONs + manifest.json
@@ -53,26 +71,28 @@ aishell/commands/
 └── scan.json               # Dry-run scan results
 ```
 
-### Git Commit
+### Git Commits
 - `2f8f08a` — feat: Add browser-based login + pull for ChatGPT and Claude
+- `170ef31` — feat: Add gemini import command for re-processing raw JSON files
 
 ### Files Changed
 | File | Change |
 |------|--------|
 | `commands/conversations/browser.py` | **New** — shared Chrome/CDP helpers, `fetch_json`, `chrome_login`, `check_auth` |
 | `commands/conversations/__init__.py` | Updated — browser re-exports |
-| `commands/gemini.py` | Refactored — Chrome helpers removed, imported from `browser.py` |
+| `commands/gemini.py` | Refactored — Chrome helpers moved to `browser.py`, added `import` command |
 | `commands/chatgpt.py` | Updated — added `login` + `pull` commands, `RAW_DIR` constant |
 | `commands/claude_export.py` | Updated — added `login` + `pull` commands, `RAW_DIR`, `_extract_org_id()` |
 
 ### Verification
+- ✅ `aishell gemini --help` → shows `import`, `login`, `pull`
 - ✅ `aishell chatgpt --help` → shows `import`, `login`, `pull`
 - ✅ `aishell claude --help` → shows `import`, `login`, `pull`
-- ✅ `aishell gemini --help` → still shows `login`, `pull` (unchanged)
 - ✅ `aishell chatgpt pull --help` → shows `--dry-run`, `--resume`, `--max`, `--delay`
 - ✅ `aishell claude pull --help` → shows `--dry-run`, `--resume`, `--max`, `--delay`
+- ✅ `aishell gemini import --help` → shows optional `raw_path` argument
 - ✅ All module imports verified
-- ✅ 935 insertions, 107 deletions across 5 files
+- ✅ Consistent 3-command interface across all providers
 
 ---
 
