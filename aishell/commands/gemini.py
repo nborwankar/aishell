@@ -1,10 +1,12 @@
 """Gemini conversation export via Chrome CDP browser automation.
 
 Subcommands:
-    aishell gemini login       # Launch Chrome for Google sign-in
-    aishell gemini pull        # Download all conversations
+    aishell gemini login                # Launch Chrome for Google sign-in
+    aishell gemini pull                 # Download all conversations
+    aishell gemini import [raw_path]    # Re-process raw JSON files
 """
 
+import glob as globmod
 import json
 import logging
 import os
@@ -511,3 +513,128 @@ def pull(max_count, resume, dry_run, delay):
     finally:
         if chrome_proc:
             console.print("[dim]Done. You can close Chrome when ready.[/dim]")
+
+
+# ── Import command (re-process raw JSONs) ────────────────────────────
+
+
+@gemini.command(name="import")
+@click.argument("raw_path", required=False, default=None)
+def import_raw(raw_path):
+    """Re-process raw Gemini JSON files into schema-compliant conversations.
+
+    Takes raw JSON files previously saved by 'gemini pull' (from the raw/
+    directory) and converts them to schema format. Useful for re-importing
+    after parser improvements or from a different machine.
+
+    RAW_PATH can be a single .json file, a directory of .json files, or
+    omitted to use the default ~/.aishell/gemini/raw/ directory.
+
+    Examples:
+        aishell gemini import
+        aishell gemini import ~/.aishell/gemini/raw/
+        aishell gemini import ~/backup/gemini/17299a597166054b.json
+    """
+    os.makedirs(CONVERSATIONS_DIR, exist_ok=True)
+
+    # Resolve input files
+    if raw_path is None:
+        raw_path = RAW_DIR
+
+    raw_path = os.path.expanduser(raw_path)
+
+    if os.path.isfile(raw_path):
+        json_files = [raw_path]
+    elif os.path.isdir(raw_path):
+        json_files = sorted(globmod.glob(os.path.join(raw_path, "*.json")))
+    else:
+        console.print(f"[red]Path not found: {raw_path}[/red]")
+        return
+
+    if not json_files:
+        console.print(f"[yellow]No JSON files found in {raw_path}[/yellow]")
+        return
+
+    console.print(
+        f"[blue]Processing {len(json_files)} raw file(s) from:[/blue] {raw_path}"
+    )
+
+    # Load existing manifest for title lookup and dedup
+    manifest = load_manifest(MANIFEST_PATH)
+    title_lookup = {c["source_id"]: c["title"] for c in manifest["conversations"]}
+    manifest_ids = {c["source_id"] for c in manifest["conversations"]}
+    results = {"success": 0, "skipped": 0, "empty": 0}
+
+    for filepath in json_files:
+        source_id = os.path.splitext(os.path.basename(filepath))[0]
+
+        # Skip if already in manifest
+        if source_id in manifest_ids:
+            results["skipped"] += 1
+            continue
+
+        try:
+            with open(filepath) as f:
+                raw_data = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            console.print(f"  [red]Error reading {filepath}: {e}[/red]")
+            results["empty"] += 1
+            continue
+
+        if raw_data.get("count", 0) == 0:
+            results["empty"] += 1
+            continue
+
+        # Title: from manifest lookup, or derive from source_id
+        title = title_lookup.get(source_id, f"Gemini ({source_id})")
+
+        # Convert to schema
+        converted = _convert_raw(raw_data, title=title, source_id=source_id)
+
+        # Save with collision handling
+        slug = slugify(title)
+        conv_path = os.path.join(CONVERSATIONS_DIR, f"{slug}.json")
+        if os.path.exists(conv_path):
+            slug = f"{slug}-{source_id[:8]}"
+            conv_path = os.path.join(CONVERSATIONS_DIR, f"{slug}.json")
+
+        with open(conv_path, "w") as f:
+            json.dump(converted, f, indent=2, ensure_ascii=False)
+
+        stats = converted["statistics"]
+        console.print(
+            f"  [green]OK[/green]: {title[:50]} "
+            f"({stats['turn_count']} turns, {stats['total_chars']:,} chars)"
+        )
+
+        # Update manifest
+        manifest["conversations"].append(
+            {
+                "source_id": source_id,
+                "title": title,
+                "conv_id": converted["conversation"]["id"],
+                "file": f"{slug}.json",
+                "turn_count": stats["turn_count"],
+                "total_chars": stats["total_chars"],
+                "exported_at": converted["conversation"]["exported_at"],
+            }
+        )
+        manifest_ids.add(source_id)
+        results["success"] += 1
+
+    # Save manifest
+    save_manifest(manifest, MANIFEST_PATH, CONVERSATIONS_DIR)
+
+    # Summary
+    console.print()
+    summary = Table(title="Gemini Import Summary")
+    summary.add_column("Metric", style="cyan")
+    summary.add_column("Count", style="green")
+    summary.add_row("Imported", str(results["success"]))
+    summary.add_row("Skipped", str(results["skipped"]))
+    summary.add_row("Empty", str(results["empty"]))
+    summary.add_row(
+        "Total", str(results["success"] + results["skipped"] + results["empty"])
+    )
+    console.print(summary)
+    console.print(f"[dim]Data: {CONVERSATIONS_DIR}[/dim]")

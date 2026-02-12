@@ -1,5 +1,81 @@
 # DONE - Development Log
 
+## Browser-Based Login + Pull for ChatGPT and Claude - 2026-02-11
+
+### Overview
+Added browser-based `login` and `pull` commands to ChatGPT and Claude, matching Gemini's existing capability. Instead of DOM scraping, uses `page.evaluate()` with `fetch()` to call internal APIs from the authenticated browser context — giving clean JSON directly. Existing parsers (`_parse_chatgpt_conversation`, `_parse_claude_conversation`) work unchanged.
+
+### New CLI Commands
+```bash
+# ChatGPT (new)
+aishell chatgpt login                      # Launch Chrome for ChatGPT sign-in
+aishell chatgpt pull [--dry-run] [--max N] # Download via internal API
+aishell chatgpt import <zip_path>          # (existing, unchanged)
+
+# Claude (new)
+aishell claude login                       # Launch Chrome for Claude sign-in
+aishell claude pull [--dry-run] [--max N]  # Download via internal API
+aishell claude import <zip_path>           # (existing, unchanged)
+```
+
+### Architecture
+```
+aishell/commands/
+├── conversations/
+│   ├── browser.py          # NEW — shared Chrome/CDP helpers + fetch_json()
+│   ├── __init__.py          # Updated — browser re-exports added
+│   ├── schema.py            # (unchanged)
+│   ├── manifest.py          # (unchanged)
+│   └── ...
+├── gemini.py                # REFACTORED — Chrome helpers moved to browser.py
+├── chatgpt.py               # UPDATED — added login + pull commands
+└── claude_export.py         # UPDATED — added login + pull commands
+```
+
+### Key Design Decisions
+- **`fetch_json()` over DOM scraping**: Runs `fetch(url, {credentials: 'include'})` inside the page context, inheriting cookies/CSRF. Returns parsed JSON — same structure as ZIP exports.
+- **Shared `browser.py`**: Chrome lifecycle helpers extracted from `gemini.py` into `conversations/browser.py`. All three providers now share `chrome_login`, `chrome_launch`, `check_auth`, `fetch_json`.
+- **ChatGPT API**: Offset-based pagination via `/backend-api/conversations?offset=&limit=100&order=updated`, then detail via `/backend-api/conversation/{id}`.
+- **Claude API**: Requires org_id extraction via `/api/organizations`, then list via `/api/organizations/{org_id}/chat_conversations`, detail via `.../chat_conversations/{uuid}`.
+- **Existing parsers untouched**: `_parse_chatgpt_conversation` (tree traversal) and `_parse_claude_conversation` (linear messages) work on both ZIP and API data.
+- **Raw response saving**: All API responses saved to `raw/` directory for debugging if parsers need adjustment.
+
+### Data Directories (after pull)
+```
+~/.aishell/chatgpt/
+├── raw/                    # Raw API responses
+├── conversations/          # Schema-compliant JSONs + manifest.json
+└── scan.json               # Dry-run scan results
+
+~/.aishell/claude/
+├── raw/                    # Raw API responses
+├── conversations/          # Schema-compliant JSONs + manifest.json
+└── scan.json               # Dry-run scan results
+```
+
+### Git Commit
+- `2f8f08a` — feat: Add browser-based login + pull for ChatGPT and Claude
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `commands/conversations/browser.py` | **New** — shared Chrome/CDP helpers, `fetch_json`, `chrome_login`, `check_auth` |
+| `commands/conversations/__init__.py` | Updated — browser re-exports |
+| `commands/gemini.py` | Refactored — Chrome helpers removed, imported from `browser.py` |
+| `commands/chatgpt.py` | Updated — added `login` + `pull` commands, `RAW_DIR` constant |
+| `commands/claude_export.py` | Updated — added `login` + `pull` commands, `RAW_DIR`, `_extract_org_id()` |
+
+### Verification
+- ✅ `aishell chatgpt --help` → shows `import`, `login`, `pull`
+- ✅ `aishell claude --help` → shows `import`, `login`, `pull`
+- ✅ `aishell gemini --help` → still shows `login`, `pull` (unchanged)
+- ✅ `aishell chatgpt pull --help` → shows `--dry-run`, `--resume`, `--max`, `--delay`
+- ✅ `aishell claude pull --help` → shows `--dry-run`, `--resume`, `--max`, `--delay`
+- ✅ All module imports verified
+- ✅ 935 insertions, 107 deletions across 5 files
+
+---
+
 ## Multi-Provider Conversation Architecture - 2026-02-11
 
 ### Overview
