@@ -38,6 +38,31 @@ CHATGPT_AUTH_INDICATORS = ["auth0.com", "login.openai.com", "/auth/"]
 CHATGPT_API_BASE = "https://chatgpt.com/backend-api"
 
 
+def _get_access_token(page):
+    """Fetch the ChatGPT access token from the session endpoint.
+
+    ChatGPT's backend API requires a Bearer token in the Authorization
+    header. The token is obtained from /api/auth/session using the
+    browser's session cookies.
+
+    Returns:
+        Access token string, or None if unavailable.
+    """
+    result = page.evaluate(
+        """async () => {
+        try {
+            const resp = await fetch('/api/auth/session', {credentials: 'include'});
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            return data.accessToken || null;
+        } catch(e) {
+            return null;
+        }
+    }"""
+    )
+    return result
+
+
 # ── Parsing helpers (shared by import and pull) ──────────────────────
 
 
@@ -194,6 +219,19 @@ def pull(max_count, resume, dry_run, delay):
                 browser.close()
                 return
 
+            # Get access token (required for ChatGPT backend API)
+            console.print("[blue]Fetching access token...[/blue]")
+            access_token = _get_access_token(page)
+            if not access_token:
+                console.print(
+                    "[red]Could not obtain access token. "
+                    "Try signing in again with 'aishell chatgpt login'.[/red]"
+                )
+                page.close()
+                browser.close()
+                return
+            auth_headers = {"Authorization": f"Bearer {access_token}"}
+
             # Fetch conversation list with pagination
             console.print("[blue]Fetching conversation list...[/blue]")
             all_conversations = []
@@ -206,7 +244,7 @@ def pull(max_count, resume, dry_run, delay):
                     f"?offset={offset}&limit={limit}&order=updated"
                 )
                 try:
-                    data = fetch_json(page, url)
+                    data = fetch_json(page, url, headers=auth_headers)
                 except RuntimeError as e:
                     console.print(f"[red]API error: {e}[/red]")
                     page.close()
@@ -317,7 +355,7 @@ def pull(max_count, resume, dry_run, delay):
                 try:
                     # Fetch full conversation detail
                     detail_url = f"{CHATGPT_API_BASE}/conversation/{source_id}"
-                    conv_raw = fetch_json(page, detail_url)
+                    conv_raw = fetch_json(page, detail_url, headers=auth_headers)
 
                     # Save raw response
                     raw_path = os.path.join(RAW_DIR, f"{source_id}.json")
