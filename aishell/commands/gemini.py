@@ -8,8 +8,6 @@ Subcommands:
 import json
 import logging
 import os
-import socket
-import subprocess
 import time
 from datetime import datetime, timezone
 
@@ -19,6 +17,14 @@ from rich.table import Table
 
 from .conversations.schema import slugify, convert_to_schema, ROLE_MAP
 from .conversations.manifest import load_manifest, save_manifest, already_exported
+from .conversations.browser import (
+    CHROME_USER_DATA_DIR,
+    CHROME_DEBUG_PORT,
+    is_debug_port_open,
+    chrome_quit,
+    chrome_launch,
+    chrome_login,
+)
 
 console = Console()
 
@@ -35,68 +41,7 @@ RAW_DIR = os.path.join(DATA_DIR, "raw")
 CONVERSATIONS_DIR = os.path.join(DATA_DIR, "conversations")
 MANIFEST_PATH = os.path.join(CONVERSATIONS_DIR, "manifest.json")
 
-CHROME_USER_DATA_DIR = os.path.expanduser("~/chromeuserdata")
-CHROME_DEBUG_PORT = 9222
 RATE_LIMIT_DELAY = 5.0
-
-
-# ── Chrome helpers ────────────────────────────────────────────────────
-
-
-def _is_debug_port_open(port=CHROME_DEBUG_PORT):
-    """Check if Chrome's CDP port is listening."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(1)
-        return s.connect_ex(("127.0.0.1", port)) == 0
-
-
-def _chrome_quit():
-    """Gracefully quit Chrome via AppleScript."""
-    subprocess.run(
-        ["osascript", "-e", 'tell application "Google Chrome" to quit'],
-        capture_output=True,
-    )
-    for _ in range(10):
-        time.sleep(1)
-        check = subprocess.run(["pgrep", "-f", "Google Chrome"], capture_output=True)
-        if check.returncode != 0:
-            break
-    time.sleep(1)
-
-
-def _chrome_launch(port=CHROME_DEBUG_PORT):
-    """Launch Chrome with remote debugging. Returns Popen or None if reusing."""
-    chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-
-    if _is_debug_port_open(port):
-        logger.info(f"Chrome debug port {port} already open, reusing")
-        return None
-
-    # Quit Chrome if running without debug port
-    result = subprocess.run(["pgrep", "-f", "Google Chrome"], capture_output=True)
-    if result.returncode == 0:
-        logger.info("Chrome running without debug port — quitting it gracefully...")
-        _chrome_quit()
-
-    proc = subprocess.Popen(
-        [
-            chrome_path,
-            f"--remote-debugging-port={port}",
-            f"--user-data-dir={CHROME_USER_DATA_DIR}",
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    logger.info(f"Chrome launched (pid={proc.pid}), waiting for debug port...")
-
-    for _ in range(15):
-        time.sleep(1)
-        if _is_debug_port_open(port):
-            logger.info(f"Debug port {port} ready")
-            return proc
-
-    logger.warning(f"Debug port {port} not responding after 15s, proceeding anyway")
-    return proc
 
 
 # ── Extraction helpers ────────────────────────────────────────────────
@@ -321,37 +266,12 @@ def login():
     Opens Chrome with a persistent profile at ~/chromeuserdata.
     Sign into your Google account, then close Chrome when done.
     """
-    console.print("[blue]Launching Chrome for Google sign-in...[/blue]")
-
-    # Quit existing Chrome
-    result = subprocess.run(["pgrep", "-f", "Google Chrome"], capture_output=True)
-    if result.returncode == 0:
-        console.print("[yellow]Quitting existing Chrome...[/yellow]")
-        _chrome_quit()
-
-    chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    proc = subprocess.Popen(
-        [
-            chrome_path,
-            f"--remote-debugging-port={CHROME_DEBUG_PORT}",
-            f"--user-data-dir={CHROME_USER_DATA_DIR}",
-            "https://accounts.google.com",
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+    chrome_login(
+        url="https://accounts.google.com",
+        message="Sign into Google, then close Chrome when done.",
+        console=console,
     )
-
-    console.print(f"[green]Chrome launched (pid={proc.pid})[/green]")
-    console.print(f"  User data dir: {CHROME_USER_DATA_DIR}")
-    console.print(f"  Debug port:    {CHROME_DEBUG_PORT}")
-    console.print()
-    console.print("Sign into Google, then close Chrome when done.")
-    console.print("[dim]Waiting for Chrome to exit...[/dim]")
-
-    proc.wait()
-    console.print(
-        "[green]Chrome closed. You can now run 'aishell gemini pull'.[/green]"
-    )
+    console.print("You can now run [cyan]aishell gemini pull[/cyan].")
 
 
 @gemini.command()
@@ -378,7 +298,7 @@ def pull(max_count, resume, dry_run, delay):
     os.makedirs(CONVERSATIONS_DIR, exist_ok=True)
 
     console.print("[blue]Launching Chrome with remote debugging...[/blue]")
-    chrome_proc = _chrome_launch()
+    chrome_proc = chrome_launch()
 
     try:
         with sync_playwright() as p:
