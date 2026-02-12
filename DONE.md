@@ -1,5 +1,64 @@
 # DONE - Development Log
 
+## Gemini Conversation Export & Semantic Search - 2026-02-11
+
+### Overview
+Added `gemini` command group to aishell for exporting, storing, and searching Gemini conversations. Adapted from a standalone prototype in `gemini_export/` that successfully extracted all 33 Gemini conversations.
+
+### Commands Implemented
+```bash
+aishell gemini login        # Launch Chrome for Google sign-in
+aishell gemini pull         # Download conversations via Playwright + CDP
+aishell gemini load         # Load into PostgreSQL with nomic embeddings
+aishell gemini search "q"   # Semantic search via pgvector cosine similarity
+```
+
+### Architecture
+```
+aishell/commands/gemini.py   # Single file, ~900 lines, all 4 subcommands
+cli.py                       # 2 lines added: import + main.add_command()
+setup.py                     # Added psycopg2-binary, sentence-transformers
+```
+
+Data directory: `~/.aishell/gemini/` (raw/, conversations/, manifest.json, scan.json)
+
+### Key Technical Details
+- **Browser Automation**: Playwright + Chrome DevTools Protocol (CDP)
+- **Chrome Profile**: `~/chromeuserdata` with `--remote-debugging-port=9222`
+- **Wait Strategy**: `domcontentloaded` (not `networkidle` — Gemini keeps WebSocket open)
+- **Sidebar Expansion**: Auto-clicks "Main menu" toggle before enumerating conversations
+- **DOM Extraction**: 4 strategies (web-components, conversation-turn, data-message-id, fallback)
+- **Role Normalization**: model→assistant, user→user, human→user via ROLE_MAP
+- **Text Cleanup**: Strips "You said\n" and "Gemini said\n" prefixes from DOM scraping
+- **Slug Collision Handling**: Appends source_id[:8] suffix for duplicate titles
+- **Embedding Model**: nomic-ai/nomic-embed-text-v1.5 (768-dim, MPS accelerated)
+- **Embedding Prefixes**: `search_document:` for storage, `search_query:` for queries
+- **Database**: PostgreSQL `conversation_export` with pgvector HNSW index
+- **Auto-provisioning**: `load` creates database, pgvector extension, and tables on first run
+- **Scan Export**: `pull --dry-run` saves scan.json with sizing assessment data
+
+### Testing Results
+- ✅ `aishell gemini --help` — shows all 4 subcommands
+- ✅ `aishell gemini pull --dry-run` — lists 33 conversations with titles
+- ✅ `aishell gemini load` — skips 33 already-loaded conversations correctly
+- ✅ `aishell gemini search "manifold geometry"` — returns 10 semantically relevant results (0.633–0.712 similarity)
+- ✅ Sidebar toggle detection working (collapsed sidebar was hiding titles)
+- ✅ scan.json saved with total/exported/new counts
+
+### Git Commits
+- `50fe124` — feat: Add gemini command group for conversation export and search
+- `61fa54b` — Add example semantic search output for gemini command
+- `36e8d86` — feat: Save scan results to scan.json on pull --dry-run
+- `22240dc` — fix: Expand collapsed sidebar before enumerating conversations
+
+### Files Created/Modified
+- `aishell/commands/gemini.py` — **New** (~900 lines)
+- `aishell/cli.py` — Added gemini command registration
+- `setup.py` — Added psycopg2-binary, sentence-transformers
+- `EXAMPLE_SEARCH.md` — **New** — sample search output
+
+---
+
 ## Web Scraping Framework - 2025-11-25
 **Documentation moved to**: `usecases/webscraping/`
 - `README.md` - Framework overview and usage
