@@ -1551,5 +1551,10 @@ def navigate(
     asyncio.run(run_navigation())
 
 
+from aishell.commands.gemini import gemini
+
+main.add_command(gemini)
+
+
 if __name__ == "__main__":
     main()

@@ -37,6 +37,8 @@ setup(
         "anthropic>=0.16.0",
         "openai>=1.0.0",
         "google-generativeai>=0.1.0",
+        "psycopg2-binary>=2.9.0",
+        "sentence-transformers>=2.0.0",
     ],
     entry_points={
         "console_scripts": [
