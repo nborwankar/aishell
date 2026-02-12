@@ -43,6 +43,17 @@ An intelligent command line tool built in Python that provides web search, intel
 - Secure display with API key masking
 - Per-provider configuration management
 
+### 💬 Multi-Provider Conversation Export & Search
+- **3 Providers**: Gemini, ChatGPT, Claude — all with consistent `login` / `pull` / `import` interface
+- **Browser-Based Pull**: Uses Chrome CDP + `fetch()` inside authenticated page context to call internal APIs
+- **ChatGPT**: Bearer token auth via `/api/auth/session`, paginated conversation list + detail API
+- **Claude**: Org ID extraction + conversation list/detail API
+- **Gemini**: DOM scraping with 4-strategy extraction (web-components, conversation-turn, data-message-id, fallback)
+- **ZIP Import**: ChatGPT and Claude data export ZIPs supported alongside browser pull
+- **Unified Schema**: All providers normalized to common JSON format with role mapping
+- **Semantic Search**: PostgreSQL + pgvector with nomic-embed-text-v1.5 (768-dim) embeddings
+- **Scale**: Tested with 1,764 conversations (Gemini 33, ChatGPT 811, Claude 920), zero failures
+
 ### 📝 Interaction Logging
 - Persistent transcript logging to `LLMTranscript.md`
 - Separate error logging to `LLMErrors.md` with detailed information
@@ -177,6 +188,32 @@ env reload                          # Reload .env file
 ?list all python files              # Natural language conversion
 ```
 
+### Conversation Export & Search
+```bash
+# Login to providers (one-time, saves session to ~/chromeuserdata)
+aishell gemini login
+aishell chatgpt login
+aishell claude login
+
+# Pull conversations via browser API
+aishell chatgpt pull --dry-run          # List conversations without downloading
+aishell chatgpt pull --max 10           # Download first 10 conversations
+aishell chatgpt pull --resume           # Download all, skip already-exported
+aishell claude pull --resume            # Same for Claude
+aishell gemini pull --resume            # Same for Gemini
+
+# Import from local files
+aishell chatgpt import ~/Downloads/chatgpt-export.zip   # ChatGPT data export ZIP
+aishell claude import ~/Downloads/claude-export.zip      # Claude data export ZIP
+aishell gemini import                                     # Re-process raw JSONs from pull
+
+# Load into PostgreSQL and search
+aishell conversations load                               # Load all providers into DB
+aishell conversations load --provider chatgpt            # Load only ChatGPT
+aishell conversations search "quantum computing"         # Search across all providers
+aishell conversations search "embeddings" --source claude --limit 5
+```
+
 ### Environment Management
 ```bash
 # In shell or CLI:
@@ -200,6 +237,13 @@ env reload                 # Reload .env file
 - `aishell mcp <server> <command>` - MCP server interaction
 - `aishell mcp-convert "text"` - Natural language to MCP translation
 - `aishell shell` - Start interactive shell
+
+### Conversation Export Commands
+- `aishell {gemini,chatgpt,claude} login` - Browser sign-in via Chrome CDP
+- `aishell {gemini,chatgpt,claude} pull` - Download conversations from provider
+- `aishell {gemini,chatgpt,claude} import` - Import from local files (ZIP or raw JSON)
+- `aishell conversations load` - Load all providers into PostgreSQL with embeddings
+- `aishell conversations search "query"` - Semantic search across all conversations
 
 ### Shell Built-in Commands
 - `llm "query" [options]` - LLM queries
@@ -341,6 +385,9 @@ env mcp-list              # List all available server types
 - `LLMErrors.md` - Detailed error logs with timestamps
 - `~/.aishell_history` - Shell command history
 - `~/.aishell_aliases` - Custom aliases (JSON format)
+- `~/.aishell/{gemini,chatgpt,claude}/raw/` - Raw API responses (JSON)
+- `~/.aishell/{gemini,chatgpt,claude}/conversations/` - Schema-compliant JSONs + manifest
+- `~/chromeuserdata/` - Chrome profile for authenticated browser sessions
 
 ## Architecture
 
@@ -348,6 +395,17 @@ env mcp-list              # List all available server types
 ```
 aishell/
 ├── cli.py               # Main CLI entry point
+├── commands/            # Command group modules
+│   ├── gemini.py        # Gemini: login, pull, import (DOM scraping)
+│   ├── chatgpt.py       # ChatGPT: login, pull, import (API + ZIP)
+│   ├── claude_export.py # Claude: login, pull, import (API + ZIP)
+│   └── conversations/   # Shared export infrastructure
+│       ├── browser.py   # Chrome/CDP helpers, fetch_json, chrome_login
+│       ├── schema.py    # Unified schema, role normalization, slugify
+│       ├── manifest.py  # Export tracking manifests
+│       ├── db.py        # PostgreSQL + pgvector setup
+│       ├── embeddings.py # nomic-embed-text-v1.5 wrapper
+│       └── cli.py       # conversations load + search commands
 ├── llm/                 # LLM provider system
 │   ├── base.py          # Abstract base classes
 │   └── providers/       # Individual provider implementations
