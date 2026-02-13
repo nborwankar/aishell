@@ -123,6 +123,8 @@ def load(provider, skip_embeddings, db):
     skipped = 0
     embedded = 0
 
+    import gc
+
     try:
         for prov_name, filepath in all_files:
             source_id = os.path.splitext(os.path.basename(filepath))[0]
@@ -136,9 +138,7 @@ def load(provider, skip_embeddings, db):
             turns = parse_conv(raw_data)
 
             if not turns:
-                console.print(
-                    f"  [dim]Skipped[/dim]: [{prov_name}] {basename} (no turns)"
-                )
+                del raw_data
                 skipped += 1
                 continue
 
@@ -158,6 +158,7 @@ def load(provider, skip_embeddings, db):
                 }
                 for t in turns
             ]
+            del turns  # free parsed turns (jsonb_turns is the copy we keep)
 
             if load_raw_conversation(
                 conn,
@@ -172,19 +173,21 @@ def load(provider, skip_embeddings, db):
             ):
                 console.print(
                     f"  [green]Loaded[/green]: [{prov_name}] {basename} "
-                    f"({len(turns)} turns)"
+                    f"({len(jsonb_turns)} turns)"
                 )
                 loaded += 1
-
-                # Embed turns into turn_embeddings
-                if not skip_embeddings:
-                    n = embed_and_store_turns(conn, prov_name, source_id, jsonb_turns)
-                    embedded += n
             else:
-                console.print(
-                    f"  [dim]Skipped[/dim]: [{prov_name}] {basename} (already loaded)"
-                )
                 skipped += 1
+
+            del raw_data  # free large JSON immediately after DB insert
+
+            # Embed turns (content_hash dedup skips already-embedded turns)
+            if not skip_embeddings:
+                n = embed_and_store_turns(conn, prov_name, source_id, jsonb_turns)
+                embedded += n
+
+            del jsonb_turns, meta
+            gc.collect()
 
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")

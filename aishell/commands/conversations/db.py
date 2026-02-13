@@ -271,12 +271,20 @@ def embed_and_store_turns(conn, source, source_id, turns, skip_embeddings=False)
         return 0
 
     # Generate embeddings
+    import math
+
     texts = [content for _, content, _ in to_embed]
     embeddings = embed_texts(texts)
 
-    # UPSERT into turn_embeddings
+    # UPSERT into turn_embeddings (skip NaN vectors)
+    stored = 0
     with conn.cursor() as cur:
         for (turn_number, content, content_hash), emb in zip(to_embed, embeddings):
+            if any(math.isnan(x) for x in emb):
+                logger.warning(
+                    f"Skipping turn {turn_number} for {source}/{source_id}: NaN in embedding"
+                )
+                continue
             emb_str = "[" + ",".join(str(x) for x in emb) + "]"
             cur.execute(
                 """INSERT INTO turn_embeddings
@@ -287,5 +295,6 @@ def embed_and_store_turns(conn, source, source_id, turns, skip_embeddings=False)
                        embedding = EXCLUDED.embedding""",
                 (source, source_id, turn_number, content_hash, emb_str),
             )
+            stored += 1
     conn.commit()
-    return len(to_embed)
+    return stored

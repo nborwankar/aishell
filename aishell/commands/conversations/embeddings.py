@@ -26,11 +26,28 @@ def get_model():
     return _model
 
 
-def embed_texts(texts):
-    """Generate embeddings with search_document: prefix."""
+def embed_texts(texts, batch_size=16):
+    """Generate embeddings with search_document: prefix.
+
+    Truncates to ~2000 tokens (8000 chars) to stay within the model's
+    2048-token context window and avoid MPS OOM on long content.
+    """
+    import torch
+
     model = get_model()
-    prefixed = [f"search_document: {t}" for t in texts]
+    # Truncate to ~2000 tokens (model max is 2048)
+    MAX_CHARS = 8000
+    prefixed = [f"search_document: {t[:MAX_CHARS]}" for t in texts]
     embeddings = model.encode(
-        prefixed, show_progress_bar=False, normalize_embeddings=True
+        prefixed,
+        show_progress_bar=False,
+        normalize_embeddings=True,
+        batch_size=batch_size,
     )
-    return embeddings.tolist()
+    result = embeddings.tolist()
+
+    # Free MPS GPU memory between calls
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+
+    return result
