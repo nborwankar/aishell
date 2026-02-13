@@ -94,6 +94,26 @@ FROM conversations_raw c,
      jsonb_array_elements(c.turns) WITH ORDINALITY AS t(turn, ord);
 """
 
+SCHEMA_V3_SQL = """
+DROP TABLE IF EXISTS turn_embeddings;
+
+CREATE TABLE IF NOT EXISTS chunk_embeddings (
+    source       TEXT NOT NULL,
+    source_id    TEXT NOT NULL,
+    turn_number  INT NOT NULL,
+    chunk_number INT NOT NULL,
+    role         TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    chunk_text   TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    embedding    vector(768),
+    PRIMARY KEY (source, source_id, turn_number, chunk_number),
+    FOREIGN KEY (source, source_id) REFERENCES conversations_raw
+);
+
+CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_hnsw
+    ON chunk_embeddings USING hnsw (embedding vector_cosine_ops);
+"""
+
 
 def ensure_database(db_name):
     """Create database, extension, and tables if they don't exist."""
@@ -110,11 +130,11 @@ def ensure_database(db_name):
             cur.execute(f'CREATE DATABASE "{db_name}"')
     conn.close()
 
-    # Create extension and tables (v1 + v2)
+    # Create extension and tables (v1 + v2 + v3)
     conn = psycopg2.connect(dbname=db_name)
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     with conn.cursor() as cur:
-        for schema in (SCHEMA_SQL, SCHEMA_V2_SQL):
+        for schema in (SCHEMA_SQL, SCHEMA_V2_SQL, SCHEMA_V3_SQL):
             for statement in schema.split(";"):
                 statement = statement.strip()
                 if statement:
@@ -232,61 +252,111 @@ def load_raw_conversation(
     return inserted
 
 
-def embed_and_store_turns(conn, source, source_id, turns, skip_embeddings=False):
-    """Embed turns and store in turn_embeddings. Uses content_hash to skip unchanged.
+def split_turn_into_chunks(content, min_chars=50):
+    """Split on \\n\\n, merge short paragraphs (<min_chars) into previous.
 
-    Returns the number of turns embedded.
+    Returns list of paragraph strings (single-element list if no splits).
+    """
+    if not content or not content.strip():
+        return []
+
+    paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
+    if not paragraphs:
+        return []
+
+    # Merge short paragraphs into previous
+    merged = [paragraphs[0]]
+    for p in paragraphs[1:]:
+        if len(p) < min_chars and merged:
+            merged[-1] = merged[-1] + "\n\n" + p
+        else:
+            merged.append(p)
+
+    return merged
+
+
+def embed_and_store_chunks(
+    conn, source, source_id, title, turns, skip_embeddings=False
+):
+    """Embed paragraph-level chunks and store in chunk_embeddings.
+
+    Each turn is split into paragraphs. Each paragraph is embedded with a
+    context prefix: [{title}] {role}: {paragraph}
+
+    Uses content_hash (of raw paragraph) to skip unchanged chunks.
+    Returns the number of chunks embedded.
     """
     if skip_embeddings:
         return 0
 
-    # Build turn data with content hashes (1-indexed to match WITH ORDINALITY)
-    turn_data = []
+    # Build chunk data: (turn_number, chunk_number, role, raw_text, content_hash)
+    chunk_data = []
     for i, turn in enumerate(turns):
         content = turn.get("content", "")
-        if not content.strip():
-            continue
-        content_hash = hashlib.sha256(content.encode()).hexdigest()
-        turn_data.append((i + 1, content, content_hash))
+        role = turn.get("role", "user")
+        turn_number = i + 1  # 1-indexed to match WITH ORDINALITY
+        paragraphs = split_turn_into_chunks(content)
+        for j, paragraph in enumerate(paragraphs):
+            chunk_number = j + 1  # 1-indexed
+            content_hash = hashlib.sha256(paragraph.encode()).hexdigest()
+            chunk_data.append(
+                (turn_number, chunk_number, role, paragraph, content_hash)
+            )
 
-    if not turn_data:
+    if not chunk_data:
         return 0
 
-    # Check which turns already have matching hashes
+    # Check which chunks already have matching hashes
     with conn.cursor() as cur:
         cur.execute(
-            """SELECT turn_number, content_hash FROM turn_embeddings
+            """SELECT turn_number, chunk_number, content_hash FROM chunk_embeddings
                WHERE source = %s AND source_id = %s""",
             (source, source_id),
         )
-        existing = {row[0]: row[1] for row in cur.fetchall()}
+        existing = {(row[0], row[1]): row[2] for row in cur.fetchall()}
 
-    # Find turns needing (re-)embedding
+    # Find chunks needing (re-)embedding
     to_embed = []
-    for turn_number, content, content_hash in turn_data:
-        if existing.get(turn_number) != content_hash:
-            to_embed.append((turn_number, content, content_hash))
+    for turn_number, chunk_number, role, paragraph, content_hash in chunk_data:
+        if existing.get((turn_number, chunk_number)) != content_hash:
+            to_embed.append((turn_number, chunk_number, role, paragraph, content_hash))
 
     if not to_embed:
         return 0
 
-    # Generate embeddings
-    texts = [content for _, content, _ in to_embed]
-    embeddings = embed_texts(texts)
+    # Build context-prefixed texts for embedding
+    prefixed_texts = [
+        f"[{title}] {role}: {paragraph}" for _, _, role, paragraph, _ in to_embed
+    ]
+    embeddings = embed_texts(prefixed_texts)
 
-    # UPSERT into turn_embeddings
+    # UPSERT into chunk_embeddings (store raw paragraph, not prefixed)
     stored = 0
     with conn.cursor() as cur:
-        for (turn_number, content, content_hash), emb in zip(to_embed, embeddings):
+        for (turn_number, chunk_number, role, paragraph, content_hash), emb in zip(
+            to_embed, embeddings
+        ):
             emb_str = "[" + ",".join(str(x) for x in emb) + "]"
             cur.execute(
-                """INSERT INTO turn_embeddings
-                   (source, source_id, turn_number, content_hash, embedding)
-                   VALUES (%s, %s, %s, %s, %s::vector)
-                   ON CONFLICT (source, source_id, turn_number) DO UPDATE
-                   SET content_hash = EXCLUDED.content_hash,
+                """INSERT INTO chunk_embeddings
+                   (source, source_id, turn_number, chunk_number, role,
+                    chunk_text, content_hash, embedding)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s::vector)
+                   ON CONFLICT (source, source_id, turn_number, chunk_number) DO UPDATE
+                   SET role = EXCLUDED.role,
+                       chunk_text = EXCLUDED.chunk_text,
+                       content_hash = EXCLUDED.content_hash,
                        embedding = EXCLUDED.embedding""",
-                (source, source_id, turn_number, content_hash, emb_str),
+                (
+                    source,
+                    source_id,
+                    turn_number,
+                    chunk_number,
+                    role,
+                    paragraph,
+                    content_hash,
+                    emb_str,
+                ),
             )
             stored += 1
     conn.commit()

@@ -12,7 +12,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from .db import DB_NAME, ensure_database, load_raw_conversation, embed_and_store_turns
+from .db import DB_NAME, ensure_database, load_raw_conversation, embed_and_store_chunks
 from .embeddings import get_model
 
 console = Console()
@@ -181,9 +181,11 @@ def load(provider, skip_embeddings, db):
 
             del raw_data  # free large JSON immediately after DB insert
 
-            # Embed turns (content_hash dedup skips already-embedded turns)
+            # Embed chunks (content_hash dedup skips already-embedded chunks)
             if not skip_embeddings:
-                n = embed_and_store_turns(conn, prov_name, source_id, jsonb_turns)
+                n = embed_and_store_chunks(
+                    conn, prov_name, source_id, title, jsonb_turns
+                )
                 embedded += n
 
             del jsonb_turns, meta
@@ -203,7 +205,7 @@ def load(provider, skip_embeddings, db):
     summary.add_row("Loaded", str(loaded))
     summary.add_row("Skipped", str(skipped))
     if not skip_embeddings:
-        summary.add_row("Turns embedded", str(embedded))
+        summary.add_row("Chunks embedded", str(embedded))
     summary.add_row("Total files", str(loaded + skipped))
     console.print(summary)
 
@@ -251,23 +253,17 @@ def search(query, limit, source, db):
                 cur.execute(
                     """
                     SELECT
-                        t.turn->>'role' AS role,
-                        t.turn->>'content' AS content,
+                        ce.role,
+                        ce.chunk_text,
                         c.title,
                         c.source,
-                        1 - (te.embedding <=> %s::vector) AS similarity
-                    FROM turn_embeddings te
+                        1 - (ce.embedding <=> %s::vector) AS similarity
+                    FROM chunk_embeddings ce
                     JOIN conversations_raw c
-                        ON te.source = c.source AND te.source_id = c.source_id
-                    JOIN LATERAL (
-                        SELECT turn
-                        FROM jsonb_array_elements(c.turns)
-                            WITH ORDINALITY AS x(turn, ord)
-                        WHERE x.ord = te.turn_number
-                    ) t ON TRUE
-                    WHERE te.embedding IS NOT NULL
+                        ON ce.source = c.source AND ce.source_id = c.source_id
+                    WHERE ce.embedding IS NOT NULL
                       AND c.source = %s
-                    ORDER BY te.embedding <=> %s::vector
+                    ORDER BY ce.embedding <=> %s::vector
                     LIMIT %s
                     """,
                     (emb_str, source, emb_str, limit),
@@ -276,22 +272,16 @@ def search(query, limit, source, db):
                 cur.execute(
                     """
                     SELECT
-                        t.turn->>'role' AS role,
-                        t.turn->>'content' AS content,
+                        ce.role,
+                        ce.chunk_text,
                         c.title,
                         c.source,
-                        1 - (te.embedding <=> %s::vector) AS similarity
-                    FROM turn_embeddings te
+                        1 - (ce.embedding <=> %s::vector) AS similarity
+                    FROM chunk_embeddings ce
                     JOIN conversations_raw c
-                        ON te.source = c.source AND te.source_id = c.source_id
-                    JOIN LATERAL (
-                        SELECT turn
-                        FROM jsonb_array_elements(c.turns)
-                            WITH ORDINALITY AS x(turn, ord)
-                        WHERE x.ord = te.turn_number
-                    ) t ON TRUE
-                    WHERE te.embedding IS NOT NULL
-                    ORDER BY te.embedding <=> %s::vector
+                        ON ce.source = c.source AND ce.source_id = c.source_id
+                    WHERE ce.embedding IS NOT NULL
+                    ORDER BY ce.embedding <=> %s::vector
                     LIMIT %s
                     """,
                     (emb_str, emb_str, limit),
@@ -304,15 +294,15 @@ def search(query, limit, source, db):
         console.print("[yellow]No results found.[/yellow]")
         return
 
-    table = Table(title=f'Search: "{query_str}"')
-    table.add_column("Sim", style="green", width=6)
-    table.add_column("Source", style="magenta", width=8)
-    table.add_column("Role", style="cyan", width=10)
-    table.add_column("Conversation", style="blue", width=30)
-    table.add_column("Content", style="white", width=60, no_wrap=False)
+    table = Table(title=f'Search: "{query_str}"', show_lines=True)
+    table.add_column("Sim", style="green", no_wrap=True)
+    table.add_column("Src", style="magenta", no_wrap=True)
+    table.add_column("Role", style="cyan", no_wrap=True)
+    table.add_column("Conversation", style="blue", max_width=30)
+    table.add_column("Content", style="white", ratio=2)
 
     for role, content, title, src, similarity in rows:
-        preview = content[:200] + "..." if len(content) > 200 else content
+        preview = content[:300] + "..." if len(content) > 300 else content
         table.add_row(f"{similarity:.3f}", src, role, title[:30], preview)
 
     console.print(table)
