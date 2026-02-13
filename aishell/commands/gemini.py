@@ -224,6 +224,29 @@ def _clean_turn_text(text, role):
     return text.strip()
 
 
+def _parse_gemini_conversation(raw):
+    """Parse raw Gemini extraction data into linearized turns."""
+    raw_turns = raw.get("turns", [])
+    turns = []
+    for raw_turn in raw_turns:
+        raw_role = raw_turn.get("role", "unknown")
+        role = ROLE_MAP.get(raw_role, raw_role)
+        content = _clean_turn_text(raw_turn.get("text", ""), role)
+        if content:
+            turns.append({"role": role, "content": content, "timestamp": None})
+    return turns
+
+
+def extract_gemini_meta(raw):
+    """Extract metadata from a raw Gemini conversation JSON."""
+    return {
+        "title": None,
+        "created_at": None,
+        "updated_at": None,
+        "model": raw.get("model"),
+    }
+
+
 def _convert_raw(raw_data, title, source_id=None, source_url=None, model=None):
     """Convert raw Gemini extraction data to schema-compliant format."""
     raw_turns = raw_data.get("turns", [])

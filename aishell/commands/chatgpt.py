@@ -137,6 +137,38 @@ def _parse_chatgpt_conversation(conv_raw):
     return _traverse_tree(mapping, root_id)
 
 
+def extract_chatgpt_meta(raw):
+    """Extract metadata from a raw ChatGPT conversation JSON."""
+    title = raw.get("title", "Untitled") or "Untitled"
+
+    created_at = None
+    create_time = raw.get("create_time")
+    if create_time:
+        try:
+            dt = datetime.fromtimestamp(create_time, tz=timezone.utc)
+            created_at = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        except (ValueError, OSError):
+            pass
+
+    updated_at = None
+    update_time = raw.get("update_time")
+    if update_time:
+        try:
+            dt = datetime.fromtimestamp(update_time, tz=timezone.utc)
+            updated_at = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        except (ValueError, OSError):
+            pass
+
+    model = raw.get("default_model_slug")
+
+    return {
+        "title": title,
+        "created_at": created_at,
+        "updated_at": updated_at,
+        "model": model,
+    }
+
+
 # ── Click command group ──────────────────────────────────────────────
 
 

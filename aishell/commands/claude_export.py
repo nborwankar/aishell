@@ -80,6 +80,21 @@ def _parse_claude_conversation(conv_raw):
     return turns
 
 
+def extract_claude_meta(raw):
+    """Extract metadata from a raw Claude conversation JSON."""
+    title = raw.get("name", raw.get("title", "Untitled")) or "Untitled"
+    created_at = raw.get("created_at")
+    updated_at = raw.get("updated_at")
+    model = raw.get("model")
+
+    return {
+        "title": title,
+        "created_at": created_at,
+        "updated_at": updated_at,
+        "model": model,
+    }
+
+
 def _extract_org_id(page):
     """Extract Claude organization ID from the API.
 
