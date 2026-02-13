@@ -8,6 +8,9 @@ lxml>=4.9.0
 aiohttp>=3.9.0  # For async HTTP requests (Ollama)
 playwright-stealth>=1.0.0  # Optional: For bypassing bot detection on Google/DuckDuckGo
 
+# TUI
+textual>=0.50.0
+
 # LLM provider dependencies
 anthropic>=0.16.0         # For Claude support
 openai>=1.0.0             # For OpenAI support

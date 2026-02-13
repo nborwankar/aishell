@@ -115,6 +115,93 @@ CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_hnsw
 """
 
 
+def list_conversations(conn, source=None, limit=None):
+    """Return conversations as list of (source, source_id, title, model, created_at, turn_count).
+
+    Sorted alphabetically by title. Optional source filter and limit.
+    """
+    with conn.cursor() as cur:
+        if source:
+            cur.execute(
+                """SELECT source, source_id, title, model, created_at,
+                          jsonb_array_length(turns) AS turn_count
+                   FROM conversations_raw
+                   WHERE source = %s
+                   ORDER BY title
+                   LIMIT %s""",
+                (source, limit or 10000),
+            )
+        else:
+            cur.execute(
+                """SELECT source, source_id, title, model, created_at,
+                          jsonb_array_length(turns) AS turn_count
+                   FROM conversations_raw
+                   ORDER BY title
+                   LIMIT %s""",
+                (limit or 10000,),
+            )
+        return cur.fetchall()
+
+
+def get_conversation_turns(conn, source, source_id):
+    """Return ordered turns for a conversation from JSONB.
+
+    Returns list of (turn_number, role, content) tuples.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT t.ord AS turn_number,
+                      t.turn->>'role' AS role,
+                      t.turn->>'content' AS content
+               FROM conversations_raw c,
+                    jsonb_array_elements(c.turns) WITH ORDINALITY AS t(turn, ord)
+               WHERE c.source = %s AND c.source_id = %s
+               ORDER BY t.ord""",
+            (source, source_id),
+        )
+        return cur.fetchall()
+
+
+def search_conversations_by_keyword(conn, query, source=None, limit=20):
+    """Return conversations containing keyword, with hit count.
+
+    Returns list of (title, source, source_id, hits, turn_count) tuples,
+    sorted by hits descending.
+    """
+    kw_pattern = f"%{query}%"
+    with conn.cursor() as cur:
+        if source:
+            cur.execute(
+                """SELECT c.title, c.source, c.source_id,
+                          COUNT(*) AS hits,
+                          jsonb_array_length(c.turns) AS turn_count
+                   FROM chunk_embeddings ce
+                   JOIN conversations_raw c
+                       ON ce.source = c.source AND ce.source_id = c.source_id
+                   WHERE (ce.chunk_text ILIKE %s OR c.title ILIKE %s)
+                     AND c.source = %s
+                   GROUP BY c.title, c.source, c.source_id, c.turns
+                   ORDER BY hits DESC
+                   LIMIT %s""",
+                (kw_pattern, kw_pattern, source, limit),
+            )
+        else:
+            cur.execute(
+                """SELECT c.title, c.source, c.source_id,
+                          COUNT(*) AS hits,
+                          jsonb_array_length(c.turns) AS turn_count
+                   FROM chunk_embeddings ce
+                   JOIN conversations_raw c
+                       ON ce.source = c.source AND ce.source_id = c.source_id
+                   WHERE ce.chunk_text ILIKE %s OR c.title ILIKE %s
+                   GROUP BY c.title, c.source, c.source_id, c.turns
+                   ORDER BY hits DESC
+                   LIMIT %s""",
+                (kw_pattern, kw_pattern, limit),
+            )
+        return cur.fetchall()
+
+
 def ensure_database(db_name):
     """Create database, extension, and tables if they don't exist."""
     import psycopg2

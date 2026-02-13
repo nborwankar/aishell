@@ -211,6 +211,30 @@ def load(provider, skip_embeddings, db):
 
 
 @conversations.command()
+@click.option(
+    "--source",
+    "-s",
+    type=click.Choice(list(RAW_PROVIDERS.keys())),
+    help="Pre-filter by provider source",
+)
+@click.option("--db", default=DB_NAME, help=f"Database name (default: {DB_NAME})")
+def browse(source, db):
+    """Interactive TUI for browsing and searching conversations.
+
+    Two-panel interface: conversation list (left) + turn viewer (right).
+    Type / to search, 1/2/3 to filter by provider, q to quit.
+
+    Examples:
+        aishell conversations browse
+        aishell conversations browse -s gemini
+    """
+    from .tui import ConversationBrowser
+
+    app = ConversationBrowser(db_name=db, source_filter=source)
+    app.run()
+
+
+@conversations.command()
 @click.argument("query", nargs=-1, required=True)
 @click.option("--limit", "-l", type=int, default=10, help="Max results")
 @click.option(
@@ -220,20 +244,26 @@ def load(provider, skip_embeddings, db):
     help="Filter by provider source",
 )
 @click.option("--db", default=DB_NAME, help=f"Database name (default: {DB_NAME})")
-def search(query, limit, source, db):
+@click.option(
+    "--conversations",
+    "-c",
+    "conv_mode",
+    is_flag=True,
+    help="List conversations containing the term (not individual chunks)",
+)
+def search(query, limit, source, db, conv_mode):
     """Hybrid search across all exported conversations.
 
     Combines semantic similarity (nomic-embed-text-v1.5) with keyword
     matching (ILIKE on chunk_text and title). Keyword fallback catches
     novel terms, acronyms, and coined words that embeddings miss.
 
-    Results show a Match column: sem=semantic only, kw=keyword only,
-    both=found by both methods.
+    Use -c to list conversations containing a term instead of chunks.
 
     Examples:
         aisearch "manifold geometry"
         aisearch "flatoon" -s gemini
-        aisearch "FDL" -l 5
+        aisearch "FDL" -c
     """
     import psycopg2
 
@@ -241,6 +271,36 @@ def search(query, limit, source, db):
     console.print(f"[blue]Searching for:[/blue] {query_str}")
     if source:
         console.print(f"[blue]Source filter:[/blue] {source}")
+
+    # --- Conversation-level mode (-c flag) ---
+    if conv_mode:
+        from .db import search_conversations_by_keyword
+
+        conn = psycopg2.connect(dbname=db)
+        try:
+            rows = search_conversations_by_keyword(
+                conn, query_str, source=source, limit=limit
+            )
+        finally:
+            conn.close()
+
+        if not rows:
+            console.print("[yellow]No conversations found.[/yellow]")
+            return
+
+        console.print(f'[dim]Conversations containing "{query_str}": {len(rows)}[/dim]')
+        table = Table(title=f'Conversations: "{query_str}"', show_lines=True)
+        table.add_column("#", style="dim", no_wrap=True)
+        table.add_column("Title", style="blue", ratio=2)
+        table.add_column("Src", style="magenta", no_wrap=True)
+        table.add_column("Hits", style="green", no_wrap=True)
+        table.add_column("Turns", style="cyan", no_wrap=True)
+
+        for i, (title, src, source_id, hits, turn_count) in enumerate(rows, 1):
+            table.add_row(str(i), title or "Untitled", src, str(hits), str(turn_count))
+
+        console.print(table)
+        return
 
     # Embed query with search_query: prefix (MLX model, normalized in registry)
     model = get_model()
