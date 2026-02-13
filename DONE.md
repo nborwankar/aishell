@@ -1,5 +1,66 @@
 # DONE - Development Log
 
+## Paragraph-Level Chunking Migration — 2026-02-12
+
+### Overview
+Migrated conversation embeddings from turn-level to paragraph-level granularity. Long assistant responses that covered multiple topics in one turn now get split into individual paragraphs, each embedded separately. This dramatically improves search precision.
+
+```
+BEFORE (turn-level):                    AFTER (paragraph-level):
+
+Turn 2 (assistant, 4 paragraphs)       Turn 2, chunk 1 → embedding
+    → 1 embedding (first 2048 tokens)   Turn 2, chunk 2 → embedding
+                                        Turn 2, chunk 3 → embedding
+                                        Turn 2, chunk 4 → embedding
+```
+
+### Schema: V2 → V3
+- Dropped `turn_embeddings` table
+- Created `chunk_embeddings` table with `chunk_number`, `role`, `chunk_text`, `content_hash` columns
+- HNSW index on `embedding` column for cosine similarity search
+- Primary key: `(source, source_id, turn_number, chunk_number)`
+
+### Chunking Strategy
+- Split on `\n\n` (paragraph boundaries)
+- Merge paragraphs shorter than 50 chars into previous (avoids embedding "Sure!" etc.)
+- Each paragraph embedded with context prefix: `[{title}] {role}: {paragraph}`
+- Raw paragraph text stored in `chunk_text` (no prefix — for display)
+- `content_hash` computed on raw paragraph (SHA-256) for dedup
+
+### Search Performance
+- Eliminated LATERAL + `jsonb_array_elements()` join — direct query on `chunk_embeddings`
+- Search now returns paragraph-level results with role and conversation title
+
+### Results
+| Metric | Before (V2) | After (V3) |
+|--------|-------------|------------|
+| Embedding units | ~11,623 turns | 73,287 chunks |
+| Granularity | 6.3x more | — |
+| Claude chunks | — | 42,594 |
+| ChatGPT chunks | — | 27,769 |
+| Gemini chunks | — | 2,924 |
+
+### Verification
+- ✅ `aishell conversations load` — 73,287 chunks embedded, zero errors
+- ✅ `aishell conversations search "manifold geometry"` — 0.74–0.80 similarity, focused paragraph results
+- ✅ `aishell conversations search "flatoon engine" --source gemini` — Gemini results working
+- ✅ Memory stable during load (~2 GB)
+- ✅ Sample search results saved to `docs/search_*.txt`
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `commands/conversations/db.py` | Added `SCHEMA_V3_SQL`, `split_turn_into_chunks()`, replaced `embed_and_store_turns()` with `embed_and_store_chunks()` |
+| `commands/conversations/cli.py` | Updated import, passes `title` to embed function, rewrote search SQL |
+| `commands/conversations/__init__.py` | Updated exports |
+
+### Git Commits
+- `e869c73` — feat: Paragraph-level chunking for conversation embeddings
+- `9677132` — docs: Update CLAUDE.md with MLX/chunking notes, add MLX SEQ_LENS patch, extend JSONB plan
+- `06d0432` — docs: Add sample search results verifying paragraph-level chunking
+
+---
+
 ## Full Conversation Pull — All Three Providers Complete - 2026-02-12
 
 ### Results
