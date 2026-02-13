@@ -1,5 +1,56 @@
 # DONE - Development Log
 
+## Hybrid Search + `aisearch` Shortcut — 2026-02-12
+
+### Overview
+Added hybrid search that combines semantic similarity with keyword matching (ILIKE on `chunk_text` and `conversations_raw.title`). Pure semantic search fails on coined/novel terms like "flatoon" — the embedding model maps them to the nearest known concept. Keyword fallback catches exact matches and merges them with semantic results.
+
+Also added `aisearch` as a top-level CLI shortcut — no more typing `aishell conversations search`.
+
+### How It Works
+```
+Query: "flatoon"
+
+1. Semantic search  → top N by cosine similarity     (may miss novel terms)
+2. Keyword search   → ILIKE '%flatoon%' on chunk_text + title  (catches exact)
+3. Merge + dedup    → union by (source, title, chunk_text[:100]), best score wins
+4. Sort + cap       → similarity descending, capped at --limit
+```
+
+### CLI Shortcut
+```bash
+# Before (verbose)
+aishell conversations search "flatoon" --source gemini --limit 5
+
+# After (shortcut — same flags)
+aisearch "flatoon" -s gemini -l 5
+```
+
+Flags: `-l/--limit`, `-s/--source`, `--db`
+
+### Results Table
+Added `Match` column showing match type:
+- `sem` — semantic only (embedding similarity)
+- `kw` — keyword only (ILIKE match, score 1.0)
+- `both` — found by both methods (keeps higher score)
+
+Summary line before table: `Results: 10 total (3 semantic, 7 keyword, 0 both)`
+
+### Verification
+- `aisearch "flatoon"` → 10 keyword-only results from Gemini Flatoon Engine conversation
+- `aisearch "flatoon" -s gemini -l 3` → 3 Gemini keyword results
+- `aisearch "manifold geometry"` → 7 keyword + 3 semantic, mixed sources
+- Semantic behavior unchanged for known terms
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `commands/conversations/cli.py` | Rewrote `search` to run both semantic + keyword queries, merge/dedup, add Match column |
+| `cli.py` | Added `aisearch_main()` entry point function |
+| `setup.py` | Added `aisearch` console_scripts entry point |
+
+---
+
 ## Paragraph-Level Chunking Migration — 2026-02-12
 
 ### Overview

@@ -51,7 +51,8 @@ An intelligent command line tool built in Python that provides web search, intel
 - **Gemini**: DOM scraping with 4-strategy extraction (web-components, conversation-turn, data-message-id, fallback)
 - **ZIP Import**: ChatGPT and Claude data export ZIPs supported alongside browser pull
 - **Unified Schema**: All providers normalized to common JSON format with role mapping
-- **Semantic Search**: PostgreSQL + pgvector with nomic-embed-text-v1.5 (768-dim) embeddings
+- **Hybrid Search**: Semantic similarity (pgvector) + keyword matching (ILIKE) — catches novel terms, acronyms, and coined words that embeddings miss
+- **Quick CLI**: `aisearch "query"` shortcut with `-s` (source) and `-l` (limit) flags
 - **Scale**: Tested with 1,764 conversations (Gemini 33, ChatGPT 811, Claude 920), zero failures
 
 ### 📝 Interaction Logging
@@ -210,8 +211,11 @@ aishell gemini import                                     # Re-process raw JSONs
 # Load into PostgreSQL and search
 aishell conversations load                               # Load all providers into DB
 aishell conversations load --provider chatgpt            # Load only ChatGPT
-aishell conversations search "quantum computing"         # Search across all providers
-aishell conversations search "embeddings" --source claude --limit 5
+
+# Hybrid search (semantic + keyword) — use the aisearch shortcut
+aisearch "quantum computing"                             # Search across all providers
+aisearch "flatoon" -s gemini                             # Keyword catches novel terms
+aisearch "embeddings" -s claude -l 5                     # Source filter + limit
 ```
 
 ### Environment Management
@@ -243,7 +247,8 @@ env reload                 # Reload .env file
 - `aishell {gemini,chatgpt,claude} pull` - Download conversations from provider
 - `aishell {gemini,chatgpt,claude} import` - Import from local files (ZIP or raw JSON)
 - `aishell conversations load` - Load all providers into PostgreSQL with embeddings
-- `aishell conversations search "query"` - Semantic search across all conversations
+- `aisearch "query"` - Hybrid search (semantic + keyword) across all conversations
+- `aisearch "query" -s gemini -l 5` - With source filter and result limit
 
 ### Shell Built-in Commands
 - `llm "query" [options]` - LLM queries

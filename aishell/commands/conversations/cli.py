@@ -221,15 +221,19 @@ def load(provider, skip_embeddings, db):
 )
 @click.option("--db", default=DB_NAME, help=f"Database name (default: {DB_NAME})")
 def search(query, limit, source, db):
-    """Semantic search across all exported conversations.
+    """Hybrid search across all exported conversations.
 
-    Uses nomic-embed-text-v1.5 to embed the query and find
-    the most similar turns via cosine similarity (JSONB storage).
+    Combines semantic similarity (nomic-embed-text-v1.5) with keyword
+    matching (ILIKE on chunk_text and title). Keyword fallback catches
+    novel terms, acronyms, and coined words that embeddings miss.
+
+    Results show a Match column: sem=semantic only, kw=keyword only,
+    both=found by both methods.
 
     Examples:
-        aishell conversations search "manifold geometry"
-        aishell conversations search "Lyapunov stability" --limit 5
-        aishell conversations search "embeddings" --source gemini
+        aisearch "manifold geometry"
+        aisearch "flatoon" -s gemini
+        aisearch "FDL" -l 5
     """
     import psycopg2
 
@@ -249,6 +253,7 @@ def search(query, limit, source, db):
     conn = psycopg2.connect(dbname=db)
     try:
         with conn.cursor() as cur:
+            # --- Semantic search ---
             if source:
                 cur.execute(
                     """
@@ -286,23 +291,95 @@ def search(query, limit, source, db):
                     """,
                     (emb_str, emb_str, limit),
                 )
-            rows = cur.fetchall()
+            semantic_rows = cur.fetchall()
+
+            # --- Keyword search (ILIKE on chunk_text and title) ---
+            kw_pattern = f"%{query_str}%"
+            if source:
+                cur.execute(
+                    """
+                    SELECT
+                        ce.role,
+                        ce.chunk_text,
+                        c.title,
+                        c.source,
+                        1.0 AS similarity
+                    FROM chunk_embeddings ce
+                    JOIN conversations_raw c
+                        ON ce.source = c.source AND ce.source_id = c.source_id
+                    WHERE (ce.chunk_text ILIKE %s OR c.title ILIKE %s)
+                      AND c.source = %s
+                    LIMIT %s
+                    """,
+                    (kw_pattern, kw_pattern, source, limit),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT
+                        ce.role,
+                        ce.chunk_text,
+                        c.title,
+                        c.source,
+                        1.0 AS similarity
+                    FROM chunk_embeddings ce
+                    JOIN conversations_raw c
+                        ON ce.source = c.source AND ce.source_id = c.source_id
+                    WHERE ce.chunk_text ILIKE %s OR c.title ILIKE %s
+                    LIMIT %s
+                    """,
+                    (kw_pattern, kw_pattern, limit),
+                )
+            keyword_rows = cur.fetchall()
     finally:
         conn.close()
 
-    if not rows:
+    # --- Merge and deduplicate ---
+    # Key: (source, title, chunk_text[:100]) — unique enough to dedup
+    # Value: (role, chunk_text, title, source, similarity, match_type)
+    merged = {}
+    sem_keys = set()
+
+    for role, content, title, src, similarity in semantic_rows:
+        key = (src, title, content[:100])
+        merged[key] = (role, content, title, src, similarity, "sem")
+        sem_keys.add(key)
+
+    for role, content, title, src, similarity in keyword_rows:
+        key = (src, title, content[:100])
+        if key in sem_keys:
+            # Already present from semantic — upgrade to "both", keep higher score
+            existing = merged[key]
+            best_sim = max(existing[4], similarity)
+            merged[key] = (role, content, title, src, best_sim, "both")
+        elif key not in merged:
+            merged[key] = (role, content, title, src, similarity, "kw")
+
+    # Sort by similarity descending, cap at limit
+    results = sorted(merged.values(), key=lambda r: r[4], reverse=True)[:limit]
+
+    if not results:
         console.print("[yellow]No results found.[/yellow]")
         return
 
+    n_sem = sum(1 for r in results if r[5] == "sem")
+    n_kw = sum(1 for r in results if r[5] == "kw")
+    n_both = sum(1 for r in results if r[5] == "both")
+    console.print(
+        f"[dim]Results: {len(results)} total "
+        f"({n_sem} semantic, {n_kw} keyword, {n_both} both)[/dim]"
+    )
+
     table = Table(title=f'Search: "{query_str}"', show_lines=True)
     table.add_column("Sim", style="green", no_wrap=True)
+    table.add_column("Match", style="yellow", no_wrap=True)
     table.add_column("Src", style="magenta", no_wrap=True)
     table.add_column("Role", style="cyan", no_wrap=True)
     table.add_column("Conversation", style="blue", max_width=30)
     table.add_column("Content", style="white", ratio=2)
 
-    for role, content, title, src, similarity in rows:
+    for role, content, title, src, similarity, match_type in results:
         preview = content[:300] + "..." if len(content) > 300 else content
-        table.add_row(f"{similarity:.3f}", src, role, title[:30], preview)
+        table.add_row(f"{similarity:.3f}", match_type, src, role, title[:30], preview)
 
     console.print(table)

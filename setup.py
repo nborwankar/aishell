@@ -43,6 +43,7 @@ setup(
     entry_points={
         "console_scripts": [
             "aishell=aishell.cli:main",
+            "aisearch=aishell.cli:aisearch_main",
         ],
     },
 )

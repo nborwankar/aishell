@@ -1562,5 +1562,15 @@ main.add_command(chatgpt)
 main.add_command(claude_export, "claude")
 
 
+def aisearch_main():
+    """Shortcut entry point: aisearch 'query' [flags]
+
+    Delegates directly to `aishell conversations search`.
+    """
+    from aishell.commands.conversations.cli import search as _search
+
+    _search(standalone_mode=True)
+
+
 if __name__ == "__main__":
     main()

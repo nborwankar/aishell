@@ -95,14 +95,17 @@ aishell {gemini,chatgpt,claude} login       # Browser sign-in via Chrome CDP
 aishell {gemini,chatgpt,claude} pull        # Download conversations (browser API)
 aishell {gemini,chatgpt,claude} import      # Re-process from local files
 aishell conversations load                   # Load all providers into PostgreSQL
-aishell conversations search "query"         # Semantic search across all providers
+aisearch "query"                             # Hybrid search (semantic + keyword)
+aisearch "flatoon" -s gemini -l 5            # With source filter and limit
 ```
+
+**Hybrid Search**: Combines semantic similarity (nomic-embed-text-v1.5) with keyword matching (ILIKE on `chunk_text` and `title`). Keyword fallback catches novel terms, acronyms, and coined words that embeddings miss. Results show a `Match` column: `sem`, `kw`, or `both`.
+
+**Shortcut**: `aisearch` is a top-level CLI command — equivalent to `aishell conversations search` but faster to type. Flags: `-l/--limit`, `-s/--source [gemini|chatgpt|claude]`, `--db`.
 
 **Approach**: ChatGPT and Claude use `fetch_json()` (page.evaluate + fetch with inherited cookies) to call internal APIs. Gemini uses DOM scraping. All produce the same schema.
 
 **Scale**: 1,764 conversations pulled (Gemini 33, ChatGPT 811, Claude 920), zero failures.
-
-**Next**: JSONB migration to unify storage in PostgreSQL (see `docs/JSONB_PLAN.md`).
 
 ## Important Implementation Notes
 
