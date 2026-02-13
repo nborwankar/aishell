@@ -236,12 +236,11 @@ def search(query, limit, source, db):
     if source:
         console.print(f"[blue]Source filter:[/blue] {source}")
 
-    # Embed query with search_query: prefix
+    # Embed query with search_query: prefix (MLX model, normalized in registry)
     model = get_model()
     query_embedding = model.encode(
         [f"search_query: {query_str}"],
-        show_progress_bar=False,
-        normalize_embeddings=True,
+        show_progress=False,
     ).tolist()[0]
     emb_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
