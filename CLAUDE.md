@@ -125,6 +125,10 @@ aishell conversations search "query"         # Semantic search across all provid
 - **Slug Collisions**: Duplicate titles get source_id[:8] suffix appended
 - **Embedding Prefixes**: nomic model requires `search_document:` for storage, `search_query:` for queries
 - **Database**: PostgreSQL `conversation_export` with pgvector HNSW index, auto-provisioned by `load`
+- **Embedding Backend**: MLX via `mlx-embedding-models` (taylorai) — native Apple Silicon GPU
+- **MLX SEQ_LENS Bug**: Library hardcodes max 512 tokens but nomic supports 2048. Monkey-patched in `embeddings.py`. See `docs/MLX_BUG_FIX.md`
+- **Chunking**: Paragraph-level (`\n\n` split, merge <50 chars). Context prefix `[title] role:` for embedding. See `docs/PARAGRAPH_CHUNKING_PLAN.md`
+- **Schema**: V1 (conversations+turns) → V2 (conversations_raw+turn_embeddings) → V3 (chunk_embeddings with paragraph text stored)
 
 ## Development Workflow
 
@@ -138,5 +142,5 @@ aishell conversations search "query"         # Semantic search across all provid
 - **Core**: click, rich, requests
 - **Web**: playwright, beautifulsoup4, lxml
 - **NL (Optional)**: anthropic, requests (for Ollama)
-- **Gemini Export**: psycopg2-binary, sentence-transformers
+- **Embeddings**: mlx-embedding-models, psycopg2-binary
 - **Dev**: pytest, black, flake8, mypy

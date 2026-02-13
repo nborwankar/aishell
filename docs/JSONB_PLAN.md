@@ -172,3 +172,67 @@ For conversations with edits/branches, store metadata for discovery:
 Query: `WHERE raw_data->'metadata'->>'has_edits' = 'true'`
 
 This lets you find branched conversations without parsing every tree.
+
+---
+
+## Implementation Plan (2026-02-12)
+
+**Status**: In progress
+
+### Architecture Decision: Keep File-Based Interchange
+
+The `conversations/*.json` files remain on disk as the **universal interchange format** — portable, shareable, importable by other tools. The JSONB migration only replaces the PG side.
+
+```
+                    ┌─────────────────────────────────┐
+                    │         pull (per provider)      │
+                    └──────────┬──────────┬────────────┘
+                               │          │
+                    ┌──────────▼──┐  ┌────▼──────────────┐
+                    │ raw/*.json  │  │ conversations/*.json│
+                    │ (archival)  │  │ (interchange fmt)   │
+                    └──────────┬──┘  └─────────────────────┘
+                               │
+                    ┌──────────▼──────────────┐
+                    │   conversations_raw     │
+            load    │   (source, source_id)   │
+           ──────►  │   raw_data  JSONB       │
+                    │   turns     JSONB       │
+                    └──────────┬──────────────┘
+                               │
+                    ┌──────────▼──────────────┐
+                    │   turn_embeddings       │
+                    │   content_hash + vector │
+                    └─────────────────────────┘
+                               │
+                    ┌──────────▼──────────────┐
+                    │   unified_turns (view)  │
+                    │   search queries here   │
+                    └─────────────────────────┘
+```
+
+### Loading Strategy
+
+The `load` command reads from **both** file sets per provider:
+- `conversations/*.json` — structured metadata (title, source_id, turns, model, dates)
+- `raw/{source_id}.json` — archival raw API response
+
+This avoids re-implementing provider-specific parsers in the loader (the parsers already ran at pull time). Gemini's raw files lack title/metadata, so the conversations/ file is the canonical source.
+
+### Files Modified
+
+1. `aishell/commands/conversations/db.py` — SCHEMA_V2_SQL, load_raw_conversation(), embed_and_store_turns()
+2. `aishell/commands/conversations/cli.py` — Updated load + search commands
+3. `aishell/commands/conversations/__init__.py` — Export new symbols
+
+### Archive
+
+Before migration, raw files archived to `~/.aishell/archive/raw_2026-02-12/` (read-only, 81MB, 1,785 files).
+
+### Steps
+
+1. [ ] Update db.py — new schema + loader functions
+2. [ ] Update cli.py load — read from conversations/ + raw/, insert into conversations_raw
+3. [ ] Update cli.py search — query turn_embeddings + unified_turns
+4. [ ] Update __init__.py — export new symbols
+5. [ ] Verify: bulk load 1,764 conversations, check counts, test search

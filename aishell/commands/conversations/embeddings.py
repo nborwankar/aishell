@@ -19,10 +19,28 @@ EMBEDDING_DIM = 768
 _model = None
 
 
+def _patch_seq_lens():
+    """Extend mlx-embedding-models SEQ_LENS to support nomic's full 2048-token context.
+
+    The library hardcodes SEQ_LENS with max 512, but nomic-embed-text-v1.5 supports
+    2048 tokens. Without this patch, inputs >512 tokens crash in _sort_inputs().
+    See: https://github.com/taylorai/mlx_embedding_models/issues/7
+    See: docs/MLX_BUG_FIX.md
+    """
+    import mlx_embedding_models.embedding as _mlx_emb
+
+    _EXTENDED = sorted(
+        set(_mlx_emb.SEQ_LENS + [640, 768, 896, 1024, 1280, 1536, 1792, 2048])
+    )
+    _mlx_emb.SEQ_LENS = _EXTENDED
+    logger.debug(f"Patched SEQ_LENS: max={_EXTENDED[-1]} ({len(_EXTENDED)} buckets)")
+
+
 def get_model():
     """Load nomic-embed-text-v1.5 via MLX on first use."""
     global _model
     if _model is None:
+        _patch_seq_lens()
         from mlx_embedding_models.embedding import EmbeddingModel
 
         logger.info(f"Loading {EMBEDDING_MODEL} (MLX)...")
@@ -35,7 +53,7 @@ def embed_texts(texts, batch_size=64):
     """Generate embeddings with search_document: prefix.
 
     Uses MLX for native Apple Silicon acceleration.
-    Truncation to 2048 tokens handled by the model's tokenizer.
+    No text truncation needed — the model tokenizer truncates to 2048 natively.
     Normalization configured in registry (normalize=True).
     """
     model = get_model()
