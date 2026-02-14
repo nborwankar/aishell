@@ -2,50 +2,56 @@
 
 **Date**: 2026-02-13
 **Branch**: main
+**Last commit**: c39778c (docs: Update DONE.md and CLAUDE.md with TUI browser, skills, module scanning)
 
-## What Was Accomplished This Session
+## What Was Done This Session
 
-### Hybrid Search (Implemented)
-- Added keyword fallback (ILIKE on `chunk_text` + `title`) to semantic search
-- Keyword matches get score 1.0, merged/deduped with semantic results
-- Match column shows `sem`/`kw`/`both` — summary line before table
-- Commit: `de56f75`
+1. **Conversation Browser TUI** (`tui.py`) — Textual two-panel browser, search, source filtering. Fixed Rich MarkupError by using `Text` objects instead of markup strings for raw content.
+2. **`-c` flag on aisearch** — conversation-level keyword search with hit counts.
+3. **Module scanning** (`commands/__init__.py`) — auto-discovers Click groups, replaces static imports in cli.py.
+4. **Skills extension mechanism** — SKILL dicts on all 4 command modules, internal registry (`list_skills()`, `get_skill()`), not user-facing.
+5. **Consistent help text** across all 3 provider commands.
+6. **Docs updated** — DONE.md, CLAUDE.md, docs/SKILLS_PLAN.md.
 
-### `aisearch` CLI Shortcut (Implemented)
-- `aisearch "query"` delegates to `aishell conversations search`
-- Flags: `-l` (limit), `-s` (source), `--db`
-- Entry point in `setup.py`, wrapper in `cli.py:aisearch_main()`
-- Commit: `de56f75`
+## Key Commits This Session
 
-### Design Docs Written
-- `docs/UNIFIED_AISEARCH.md` — plan to extend aisearch with `-f` (file) and `-w` (web) flags. Commit: `9811bf7`
-- `docs/CONVERSATION_BROWSER_PLAN.md` — Textual TUI browser with `-c` flag. **Needs commit.**
+- `332e5eb` — feat: Add conversation browser TUI and -c flag
+- `f3284fc` — docs: Add skills extension mechanism plan
+- `c97a783` — feat: Add skills extension mechanism with internal registry
+- `fcbdb4d` — fix: Consistent help text across all 3 provider commands
+- `c39778c` — docs: Update DONE.md and CLAUDE.md
 
-## Immediate Next Steps
+## What's Next
 
-1. **Commit** `docs/CONVERSATION_BROWSER_PLAN.md` + this `NEXT_SESSION.md`
+### Immediate (Ready to Build)
+- **`invoke_skill_tool()`** — programmatic bridge that translates agent tool calls to Click command invocations. This is the missing piece between the skill registry and an agent loop.
+- **`aishell agent "query"`** — native agent loop using Anthropic tool_use API with skill-registered tools. The agent can call aisearch, browse, etc. as tools.
 
-2. **`-c` flag on `aisearch`** — conversation-level keyword search
-   - SQL GROUP BY on conversations containing keyword, return title + hit count
-   - Simple addition to `commands/conversations/cli.py`, no new deps
-   - See `docs/CONVERSATION_BROWSER_PLAN.md` Part 1
+### Planned (From docs/)
+- **Unified aisearch** (`docs/UNIFIED_AISEARCH.md`) — extend aisearch with `-f` (file system search) and `-w` (web search) flags.
+- **Third-party skills** — entry_points-based discovery for pip-installed command plugins.
 
-3. **DB helpers for browser** — add to `db.py`:
-   - `list_conversations()`, `get_conversation_turns()`, `search_conversations_by_keyword()`
+### Polish
+- TUI: add sorting (by title, date, turn count), markdown rendering for assistant turns.
+- TUI: keyboard navigation improvements (j/k scrolling in turn viewer).
 
-4. **Textual TUI browser** — `aishell conversations browse`
-   - Two-panel layout: conversation list + turn viewer
-   - `/` for search, `1`/`2`/`3` for source filtering
-   - Needs `textual>=0.50.0` dependency
-   - See `docs/CONVERSATION_BROWSER_PLAN.md` Part 2
+## Architecture Notes
 
-5. **Unified aisearch** — extend with `-f` (file) and `-w` (web) flags
-   - See `docs/UNIFIED_AISEARCH.md`
+### Module Scanning Flow
+```
+cli.py → discover_commands(main) → scans commands/ → registers Click groups + SKILL dicts
+```
 
-## Key Files
-| File | Purpose |
-|------|---------|
-| `commands/conversations/cli.py` | Hybrid search, aisearch target |
-| `cli.py` | Main CLI + `aisearch_main()` |
-| `docs/CONVERSATION_BROWSER_PLAN.md` | TUI browser plan |
-| `docs/UNIFIED_AISEARCH.md` | Unified search plan |
+### Skill Registry (Internal)
+```python
+from aishell.commands import list_skills, get_skill
+# list_skills() → [("chatgpt", {...}), ("claude", {...}), ("conversations", {...}), ("gemini", {...})]
+# get_skill("conversations") → {"name": ..., "tools": [...], ...}
+```
+
+### Key Files
+- `aishell/commands/__init__.py` — scanner + registry
+- `aishell/commands/conversations/tui.py` — Textual TUI browser
+- `aishell/commands/conversations/db.py` — query helpers (list_conversations, get_conversation_turns, search_conversations_by_keyword)
+- `docs/SKILLS_PLAN.md` — full design doc for skills mechanism
+- `docs/UNIFIED_AISEARCH.md` — plan for -f/-w flag expansion
