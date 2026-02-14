@@ -277,7 +277,7 @@ def _convert_raw(raw_data, title, source_id=None, source_url=None, model=None):
 
 SKILL = {
     "name": "gemini",
-    "description": "Export Gemini conversations via Chrome browser automation",
+    "description": "Import or pull Gemini conversations via Chrome browser automation",
     "capabilities": [
         "Browser login to Gemini via Chrome CDP",
         "Pull conversations using DOM scraping (4 extraction strategies)",
@@ -314,7 +314,7 @@ SKILL = {
 
 @click.group()
 def gemini():
-    """Export Gemini conversations via Chrome browser automation."""
+    """Import or pull Gemini conversations."""
     pass
 
 
