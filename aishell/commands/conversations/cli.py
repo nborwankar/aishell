@@ -18,6 +18,65 @@ from .embeddings import get_model
 console = Console()
 logger = logging.getLogger(__name__)
 
+SKILL = {
+    "name": "conversations",
+    "description": "Load, browse, and search exported LLM conversations",
+    "capabilities": [
+        "Hybrid search (semantic + keyword) across all conversations",
+        "Conversation-level keyword search with hit counts (-c flag)",
+        "Interactive TUI browser with source filtering",
+        "Load raw exports from Gemini, ChatGPT, Claude into PostgreSQL",
+    ],
+    "examples": [
+        'aisearch "manifold geometry"',
+        'aisearch "flatoon" -c',
+        'aisearch "FDL" -s gemini -l 5',
+        "aishell conversations browse",
+        "aishell conversations browse -s gemini",
+        "aishell conversations load",
+        "aishell conversations load --provider chatgpt",
+    ],
+    "tools": [
+        {
+            "name": "search_conversations",
+            "description": "Hybrid semantic + keyword search across exported LLM conversations",
+            "parameters": {
+                "query": {
+                    "type": "string",
+                    "required": True,
+                    "description": "Search query",
+                },
+                "source": {
+                    "type": "string",
+                    "enum": ["gemini", "chatgpt", "claude"],
+                    "description": "Filter by provider",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "Max results",
+                },
+                "conversations": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Conversation-level search (-c flag)",
+                },
+            },
+        },
+        {
+            "name": "browse_conversations",
+            "description": "Launch interactive TUI for browsing conversations",
+            "parameters": {
+                "source": {
+                    "type": "string",
+                    "enum": ["gemini", "chatgpt", "claude"],
+                    "description": "Pre-filter by provider",
+                },
+            },
+        },
+    ],
+}
+
 # Provider raw data directories under ~/.aishell/
 RAW_PROVIDERS = {
     "gemini": os.path.expanduser("~/.aishell/gemini/raw"),

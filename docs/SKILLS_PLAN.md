@@ -1,6 +1,6 @@
 # Skills: Command Plugin Extension Mechanism — Plan
 
-**Status**: Planned (not yet implemented)
+**Status**: Implemented (2026-02-13)
 **Created**: 2026-02-13
 
 ## Context
@@ -112,47 +112,24 @@ and SKILL metadata:
 │    ...                                          │
 │  }                                              │
 └─────────────────────────────────────────────────┘
-         │                        │
-         ▼                        ▼
-   aishell <cmd>           aishell skills
-   (Click dispatch)        (list all skills)
+         │
+         ▼
+   aishell <cmd>
+   (Click dispatch)
 ```
 
-### `aishell skills` Command
+### Design Decision: Internal Registry Only
 
-Top-level command (in `cli.py`, not a plugin) that lists all registered skills:
+Skills are NOT exposed as a user-facing command. There is no `aishell skills`
+command. The registry is internal infrastructure used by:
 
-```
-$ aishell skills
+- The shell/agent to route queries to the right command
+- Future agent loops to discover available tools
+- Programmatic introspection (`list_skills()`, `get_skill()`)
 
-  Skills (4 registered)
-
-  conversations   Load, browse, and search exported LLM conversations
-  gemini          Export Gemini conversations via Chrome browser automation
-  chatgpt         Import or pull ChatGPT conversations
-  claude          Import or pull Claude conversations
-
-  Run `aishell skills <name>` for details and examples.
-
-$ aishell skills conversations
-
-  conversations — Load, browse, and search exported LLM conversations
-
-  Capabilities:
-    • Hybrid search (semantic + keyword) across 1764+ conversations
-    • Conversation-level keyword search with hit counts
-    • Interactive TUI browser with source filtering
-    • Load raw exports from Gemini, ChatGPT, Claude into PostgreSQL
-
-  Examples:
-    aisearch "manifold geometry"
-    aisearch "flatoon" -c
-    aishell conversations browse
-
-  Tools (agent-callable):
-    search_conversations    Hybrid semantic + keyword search
-    browse_conversations    Launch interactive TUI browser
-```
+The user should not need to know which commands are "skills" — every command
+plugin is a skill automatically. It's an extension mechanism, not a syntax
+element.
 
 ### Auto-Extraction Fallback
 

@@ -1551,15 +1551,9 @@ def navigate(
     asyncio.run(run_navigation())
 
 
-from aishell.commands.gemini import gemini
-from aishell.commands.conversations.cli import conversations
-from aishell.commands.chatgpt import chatgpt
-from aishell.commands.claude_export import claude_export
+from aishell.commands import discover_commands
 
-main.add_command(gemini)
-main.add_command(conversations)
-main.add_command(chatgpt)
-main.add_command(claude_export, "claude")
+discover_commands(main)
 
 
 def aisearch_main():

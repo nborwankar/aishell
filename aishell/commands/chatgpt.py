@@ -169,6 +169,45 @@ def extract_chatgpt_meta(raw):
     }
 
 
+SKILL = {
+    "name": "chatgpt",
+    "description": "Import or pull ChatGPT conversations via API and ZIP export",
+    "capabilities": [
+        "Browser login to ChatGPT via Chrome CDP",
+        "Pull conversations using internal API (Bearer token auth)",
+        "Import from ChatGPT ZIP export files",
+    ],
+    "examples": [
+        "aishell chatgpt login",
+        "aishell chatgpt pull",
+        "aishell chatgpt pull --max 100 --resume",
+        "aishell chatgpt import conversations.zip",
+    ],
+    "tools": [
+        {
+            "name": "pull_chatgpt",
+            "description": "Download ChatGPT conversations via internal API",
+            "parameters": {
+                "max_count": {
+                    "type": "integer",
+                    "default": 200,
+                    "description": "Max conversations to pull",
+                },
+                "resume": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Resume interrupted pull",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Scan only, don't download",
+                },
+            },
+        },
+    ],
+}
+
 # ── Click command group ──────────────────────────────────────────────
 
 

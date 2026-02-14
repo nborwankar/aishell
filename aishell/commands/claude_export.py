@@ -130,6 +130,45 @@ def _extract_org_id(page):
     return None
 
 
+SKILL = {
+    "name": "claude",
+    "description": "Import or pull Claude conversations via API and ZIP export",
+    "capabilities": [
+        "Browser login to Claude via Chrome CDP",
+        "Pull conversations using internal API (org-based auth)",
+        "Import from Claude ZIP export files",
+    ],
+    "examples": [
+        "aishell claude login",
+        "aishell claude pull",
+        "aishell claude pull --max 100 --resume",
+        "aishell claude import export.zip",
+    ],
+    "tools": [
+        {
+            "name": "pull_claude",
+            "description": "Download Claude conversations via internal API",
+            "parameters": {
+                "max_count": {
+                    "type": "integer",
+                    "default": 200,
+                    "description": "Max conversations to pull",
+                },
+                "resume": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Resume interrupted pull",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Scan only, don't download",
+                },
+            },
+        },
+    ],
+}
+
 # ── Click command group ──────────────────────────────────────────────
 
 

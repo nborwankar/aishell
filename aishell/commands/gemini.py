@@ -275,6 +275,40 @@ def _convert_raw(raw_data, title, source_id=None, source_url=None, model=None):
     )
 
 
+SKILL = {
+    "name": "gemini",
+    "description": "Export Gemini conversations via Chrome browser automation",
+    "capabilities": [
+        "Browser login to Gemini via Chrome CDP",
+        "Pull conversations using DOM scraping (4 extraction strategies)",
+        "Import from local raw JSON files",
+    ],
+    "examples": [
+        "aishell gemini login",
+        "aishell gemini pull",
+        "aishell gemini pull --max 50 --dry-run",
+        "aishell gemini import",
+    ],
+    "tools": [
+        {
+            "name": "pull_gemini",
+            "description": "Download Gemini conversations via browser automation",
+            "parameters": {
+                "max_count": {
+                    "type": "integer",
+                    "default": 200,
+                    "description": "Max conversations to pull",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Scan only, don't download",
+                },
+            },
+        },
+    ],
+}
+
 # ── Click command group ───────────────────────────────────────────────
 
 
