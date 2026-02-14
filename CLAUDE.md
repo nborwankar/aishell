@@ -36,19 +36,20 @@ aishell --help
 aishell/
 ├── __init__.py           # Package metadata
 ├── cli.py               # Main CLI entry point with Click commands
-├── commands/            # Command group modules
-│   ├── __init__.py
-│   ├── gemini.py        # Gemini: login, pull, import (DOM scraping)
-│   ├── chatgpt.py       # ChatGPT: login, pull, import (API + ZIP)
-│   ├── claude_export.py # Claude: login, pull, import (API + ZIP)
-│   └── conversations/   # Shared export infrastructure
+├── commands/            # Command plugins (auto-discovered via module scanning)
+│   ├── __init__.py      # discover_commands() + skill registry
+│   ├── gemini.py        # Gemini: login, pull, import + SKILL metadata
+│   ├── chatgpt.py       # ChatGPT: login, pull, import + SKILL metadata
+│   ├── claude_export.py # Claude: login, pull, import + SKILL metadata
+│   └── conversations/   # Shared export infrastructure + SKILL metadata
 │       ├── __init__.py
 │       ├── browser.py   # Chrome/CDP helpers, fetch_json, chrome_login
 │       ├── schema.py    # slugify, ROLE_MAP, convert_to_schema
 │       ├── manifest.py  # load/save manifest, already_exported
-│       ├── db.py        # PostgreSQL + pgvector setup
+│       ├── db.py        # PostgreSQL + pgvector setup + query helpers
 │       ├── embeddings.py # nomic-embed-text-v1.5 wrapper
-│       └── cli.py       # conversations load + search commands
+│       ├── cli.py       # conversations load, browse, search commands
+│       └── tui.py       # Textual TUI conversation browser
 ├── search/              # Search functionality
 │   ├── __init__.py
 │   ├── web_search.py    # Playwright-based web search (Google, DuckDuckGo)
@@ -97,11 +98,19 @@ aishell {gemini,chatgpt,claude} import      # Re-process from local files
 aishell conversations load                   # Load all providers into PostgreSQL
 aisearch "query"                             # Hybrid search (semantic + keyword)
 aisearch "flatoon" -s gemini -l 5            # With source filter and limit
+aisearch "flatoon" -c                        # Conversation-level search with hit counts
+aishell conversations browse                 # Interactive TUI browser
+aishell conversations browse -s gemini       # TUI pre-filtered by source
 ```
 
 **Hybrid Search**: Combines semantic similarity (nomic-embed-text-v1.5) with keyword matching (ILIKE on `chunk_text` and `title`). Keyword fallback catches novel terms, acronyms, and coined words that embeddings miss. Results show a `Match` column: `sem`, `kw`, or `both`.
 
-**Shortcut**: `aisearch` is a top-level CLI command — equivalent to `aishell conversations search` but faster to type. Flags: `-l/--limit`, `-s/--source [gemini|chatgpt|claude]`, `--db`.
+**Shortcut**: `aisearch` is a top-level CLI command — equivalent to `aishell conversations search` but faster to type. Flags: `-l/--limit`, `-s/--source [gemini|chatgpt|claude]`, `-c/--conversations`, `--db`.
+
+**TUI Browser**: Two-panel Textual app — conversation list (left) + turn viewer (right). Keybindings: `/` search, `1`/`2`/`3`/`0` source filter, `q` quit.
+
+### Plugin Architecture (2026-02)
+Commands are auto-discovered via module scanning — drop a `.py` file (or package with `cli.py`) into `aishell/commands/` and it registers automatically. Each module MAY export a `SKILL` dict with description, capabilities, examples, and agent-callable tool definitions. The registry is internal (`list_skills()`, `get_skill()`) — not user-facing. See `docs/SKILLS_PLAN.md`.
 
 **Approach**: ChatGPT and Claude use `fetch_json()` (page.evaluate + fetch with inherited cookies) to call internal APIs. Gemini uses DOM scraping. All produce the same schema.
 
@@ -112,6 +121,7 @@ aisearch "flatoon" -s gemini -l 5            # With source filter and limit
 - **macOS Focused**: File search optimized for macOS using `mdfind`, `find`, `grep`, `mdls`
 - **Async Architecture**: Web search and LLM calls use async/await with proper concurrency
 - **Rich UI**: All output uses Rich library for formatting and tables
+- **Plugin Architecture**: Module scanning auto-discovers command groups + skill metadata
 - **Pluggable Architecture**: Support for multiple LLM providers and NL converters
 - **Environment Configuration**: .env file loading on startup with reload capability
 - **Transcript Logging**: All LLM interactions logged to LLMTranscript.md with errors in LLMErrors.md
@@ -144,6 +154,7 @@ aisearch "flatoon" -s gemini -l 5            # With source filter and limit
 
 - **Core**: click, rich, requests
 - **Web**: playwright, beautifulsoup4, lxml
+- **TUI**: textual (Textual terminal UI framework)
 - **NL (Optional)**: anthropic, requests (for Ollama)
 - **Embeddings**: mlx-embedding-models, psycopg2-binary
 - **Dev**: pytest, black, flake8, mypy

@@ -1,5 +1,87 @@
 # DONE - Development Log
 
+## Skills Extension + Module Scanning + TUI Browser — 2026-02-13
+
+### Overview
+Three features shipped in one session:
+
+1. **Module scanning** — auto-discovers Click command groups dropped into `aishell/commands/`. No manual imports in `cli.py` needed.
+2. **Skills metadata** — each command module exports a `SKILL` dict (description, capabilities, examples, agent-callable tool definitions). Internal registry only — not user-facing.
+3. **Conversation browser TUI** — Textual-based two-panel browser with conversation list (left) + turn viewer (right), search, and source filtering.
+4. **`-c` flag on aisearch** — conversation-level keyword search with hit counts.
+
+### Module Scanning (`commands/__init__.py`)
+```
+aishell/commands/
+├── __init__.py          # discover_commands() scans for Click groups + SKILL dicts
+├── gemini.py            # Auto-discovered → registers as "gemini" command
+├── chatgpt.py           # Auto-discovered → registers as "chatgpt" command
+├── claude_export.py     # Auto-discovered → registers as "claude" command
+└── conversations/
+    └── cli.py           # Auto-discovered → registers as "conversations" command
+```
+
+Drop a new `.py` file (or package with `cli.py`) into `commands/` and it auto-registers. Convention:
+- Single file: exports a `click.Group`
+- Package: has `cli.py` that exports a `click.Group`
+
+### Skills Metadata
+Each module MAY export a `SKILL` dict alongside its Click group:
+```python
+SKILL = {
+    "name": "conversations",
+    "description": "Load, browse, and search exported LLM conversations",
+    "capabilities": [...],
+    "examples": [...],
+    "tools": [{"name": "search_conversations", "parameters": {...}}, ...],
+}
+```
+
+Internal API: `list_skills()`, `get_skill(name)`. No `aishell skills` command — skills are an extension mechanism, not a syntax element. Modules without `SKILL` get auto-generated metadata from Click introspection.
+
+### Conversation Browser TUI
+```bash
+aishell conversations browse              # Launch TUI
+aishell conversations browse -s gemini    # Pre-filter by source
+```
+
+Two-panel layout: conversation list (left) + turn viewer (right).
+Keybindings: `/` search, `1`/`2`/`3`/`0` source filter, `q` quit.
+Uses `rich.text.Text` objects (not markup strings) to safely render raw conversation content with brackets.
+
+### `-c` Flag
+```bash
+aisearch "flatoon" -c       # 4 conversations with hit counts
+aisearch "Riemannian" -c    # 10 conversations across providers
+```
+
+### DB Helpers Added (`db.py`)
+- `list_conversations(conn, source, limit)` — all conversations sorted by title
+- `get_conversation_turns(conn, source, source_id)` — ordered turns from JSONB
+- `search_conversations_by_keyword(conn, query, source, limit)` — GROUP BY with hit count
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `commands/__init__.py` | Rewritten: module scanning + skill registry |
+| `commands/conversations/cli.py` | Added SKILL dict, `-c` flag, `browse` subcommand |
+| `commands/conversations/tui.py` | **New** — Textual TUI browser |
+| `commands/conversations/db.py` | Added 3 query helpers |
+| `commands/gemini.py` | Added SKILL dict, consistent help text |
+| `commands/chatgpt.py` | Added SKILL dict |
+| `commands/claude_export.py` | Added SKILL dict |
+| `cli.py` | Replaced static imports with `discover_commands(main)` |
+| `setup.py` | Added `textual>=0.50.0` |
+| `requirements.txt` | Added `textual>=0.50.0` |
+
+### Git Commits
+- `332e5eb` — feat: Add conversation browser TUI and -c flag
+- `c97a783` — feat: Add skills extension mechanism with internal registry
+- `fcbdb4d` — fix: Consistent help text across all 3 provider commands
+- `f3284fc` — docs: Add skills extension mechanism plan
+
+---
+
 ## Hybrid Search + `aisearch` Shortcut — 2026-02-12
 
 ### Overview
