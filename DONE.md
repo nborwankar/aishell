@@ -1,5 +1,48 @@
 # DONE - Development Log
 
+## ChatGPT Parser Content-Type Expansion + Test Fixes — 2026-02-16
+
+### Overview
+Expanded `_traverse_tree` in `chatgpt.py` to handle all content types encountered in real ChatGPT API data. Previously only extracted string parts from `user`/`assistant` messages, silently dropping Code Interpreter output, images, browsing results, and reasoning thoughts. Also fixed 5 pre-existing LLM provider test failures.
+
+### Content Types Now Handled
+
+| Content Type | Before | After |
+|---|---|---|
+| `text` | String parts joined | Unchanged |
+| `multimodal_text` | Dict parts silently dropped | String parts joined, dict parts → `[image]` placeholder |
+| `execution_output` | Dropped (tool role ignored) | Code block from `metadata.aggregate_result.code` + output text, role → `tool` |
+| `tether_browsing_display` | Dropped | `content.result` or `content.summary`, role → `tool` |
+| `thoughts` | Dropped | Stashed and attached as `metadata.thoughts` on next assistant turn |
+| `reasoning_recap` | Dropped | Explicitly skipped (cosmetic "Thought for X seconds") |
+| `model_editable_context` | Dropped | Explicitly skipped (ChatGPT memory updates) |
+
+### Changes Made
+- **`_extract_timestamp` helper** — extracted timestamp parsing into reusable function (also catches `OverflowError`)
+- **`_traverse_tree` rewrite** — content-type dispatch replacing the old string-join-only logic
+- **Role filter broadened** — now accepts `tool` role (Code Interpreter, browsing) in addition to `user`/`assistant`
+- **No schema changes needed** — `schema.py` already supports `attachments` and `metadata` per turn
+
+### LLM Provider Test Fixes
+5 tests in `tests/llm/test_providers.py` were failing because they assumed no API keys in environment, but real keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`) were set in the shell. Fixed with `monkeypatch.delenv()` to clear the env vars during those tests.
+
+### Test Results
+- **130 passed, 0 failed** (previously 5 failures)
+- **21 new tests** in `tests/test_chatgpt_parser.py` covering all content types
+- **5 fixed tests** in `tests/llm/test_providers.py`
+
+### Files Changed
+| File | Change |
+|---|---|
+| `aishell/commands/chatgpt.py` | Added `_extract_timestamp`, rewrote `_traverse_tree` with content-type dispatch |
+| `tests/test_chatgpt_parser.py` | **New** — 21 tests for all content types |
+| `tests/llm/test_providers.py` | Fixed 5 env-leak failures with `monkeypatch.delenv` |
+
+### Git Commit
+- `405d0e6` — feat: Handle all ChatGPT content types in conversation parser
+
+---
+
 ## Skills Extension + Module Scanning + TUI Browser — 2026-02-13
 
 ### Overview
