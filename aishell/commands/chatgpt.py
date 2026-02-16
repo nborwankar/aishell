@@ -247,7 +247,13 @@ def login():
 @click.option(
     "--delay", type=float, default=2.0, help="Delay between API calls (seconds)"
 )
-def pull(max_count, resume, dry_run, delay):
+@click.option(
+    "--output-dir",
+    type=click.Path(),
+    default=None,
+    help="Save output to this directory instead of ~/.aishell/chatgpt/",
+)
+def pull(max_count, resume, dry_run, delay, output_dir):
     """Download ChatGPT conversations via browser API.
 
     Connects to Chrome via CDP, calls ChatGPT's internal API using
@@ -258,8 +264,19 @@ def pull(max_count, resume, dry_run, delay):
     """
     from playwright.sync_api import sync_playwright
 
-    os.makedirs(RAW_DIR, exist_ok=True)
-    os.makedirs(CONVERSATIONS_DIR, exist_ok=True)
+    if output_dir:
+        data_dir = os.path.abspath(output_dir)
+        raw_dir = os.path.join(data_dir, "raw")
+        conversations_dir = os.path.join(data_dir, "conversations")
+        manifest_path = os.path.join(conversations_dir, "manifest.json")
+    else:
+        data_dir = DATA_DIR
+        raw_dir = RAW_DIR
+        conversations_dir = CONVERSATIONS_DIR
+        manifest_path = MANIFEST_PATH
+
+    os.makedirs(raw_dir, exist_ok=True)
+    os.makedirs(conversations_dir, exist_ok=True)
 
     console.print("[blue]Launching Chrome with remote debugging...[/blue]")
     chrome_proc = chrome_launch()
@@ -351,7 +368,7 @@ def pull(max_count, resume, dry_run, delay):
                 all_conversations = [
                     c
                     for c in all_conversations
-                    if not already_exported(c.get("id", ""), RAW_DIR)
+                    if not already_exported(c.get("id", ""), raw_dir)
                 ]
                 skipped = before - len(all_conversations)
                 if skipped:
@@ -374,7 +391,7 @@ def pull(max_count, resume, dry_run, delay):
                 scan_entries = []
                 for i, conv in enumerate(all_conversations, 1):
                     cid = conv.get("id", "")
-                    exported = already_exported(cid, RAW_DIR)
+                    exported = already_exported(cid, raw_dir)
                     status = "[green]DONE[/green]" if exported else ""
                     title = conv.get("title", "Untitled") or "Untitled"
                     table.add_row(str(i), cid[:20], status, title[:60])
@@ -395,7 +412,7 @@ def pull(max_count, resume, dry_run, delay):
                     f"({already_count} exported, {new_count} new)"
                 )
 
-                scan_path = os.path.join(DATA_DIR, "scan.json")
+                scan_path = os.path.join(data_dir, "scan.json")
                 scan_data = {
                     "scanned_at": datetime.now(timezone.utc).strftime(
                         "%Y-%m-%dT%H:%M:%SZ"
@@ -414,7 +431,7 @@ def pull(max_count, resume, dry_run, delay):
                 return
 
             # Fetch each conversation detail
-            manifest = load_manifest(MANIFEST_PATH)
+            manifest = load_manifest(manifest_path)
             manifest_ids = {c["source_id"] for c in manifest["conversations"]}
             results = {"success": 0, "failed": 0, "skipped": 0}
 
@@ -429,7 +446,7 @@ def pull(max_count, resume, dry_run, delay):
                     conv_raw = fetch_json(page, detail_url, headers=auth_headers)
 
                     # Save raw response
-                    raw_path = os.path.join(RAW_DIR, f"{source_id}.json")
+                    raw_path = os.path.join(raw_dir, f"{source_id}.json")
                     with open(raw_path, "w") as f:
                         json.dump(conv_raw, f, indent=2, ensure_ascii=False)
 
@@ -463,10 +480,10 @@ def pull(max_count, resume, dry_run, delay):
 
                     # Save with collision handling
                     slug = slugify(title)
-                    conv_path = os.path.join(CONVERSATIONS_DIR, f"{slug}.json")
+                    conv_path = os.path.join(conversations_dir, f"{slug}.json")
                     if os.path.exists(conv_path) and source_id:
                         slug = f"{slug}-{source_id[:8]}"
-                        conv_path = os.path.join(CONVERSATIONS_DIR, f"{slug}.json")
+                        conv_path = os.path.join(conversations_dir, f"{slug}.json")
 
                     with open(conv_path, "w") as f:
                         json.dump(converted, f, indent=2, ensure_ascii=False)
@@ -503,7 +520,7 @@ def pull(max_count, resume, dry_run, delay):
                     time.sleep(delay)
 
             # Save manifest
-            save_manifest(manifest, MANIFEST_PATH, CONVERSATIONS_DIR)
+            save_manifest(manifest, manifest_path, conversations_dir)
 
             # Summary
             total = results["success"] + results["failed"] + results["skipped"]
@@ -516,7 +533,7 @@ def pull(max_count, resume, dry_run, delay):
             summary.add_row("Skipped", str(results["skipped"]))
             summary.add_row("Total", str(total))
             console.print(summary)
-            console.print(f"[dim]Data: {DATA_DIR}[/dim]")
+            console.print(f"[dim]Data: {data_dir}[/dim]")
 
             page.close()
             browser.close()
