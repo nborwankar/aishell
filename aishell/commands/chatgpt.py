@@ -6,9 +6,11 @@ Subcommands:
     aishell chatgpt import <zip_path>  # Parse ChatGPT data export ZIP
 """
 
+import glob as globmod
 import json
 import logging
 import os
+import shutil
 import time
 import zipfile
 from datetime import datetime, timezone
@@ -739,3 +741,157 @@ def import_zip(zip_path):
     )
     console.print(summary)
     console.print(f"[dim]Data: {CONVERSATIONS_DIR}[/dim]")
+
+
+# ── Reimport command (re-process raw JSONs) ────────────────────────
+
+
+@chatgpt.command()
+@click.option(
+    "--raw-dir",
+    type=click.Path(exists=True),
+    default=None,
+    help="Directory with raw API JSONs (default: ~/.aishell/chatgpt/raw/)",
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(),
+    default=None,
+    help="Save output to this directory instead of ~/.aishell/chatgpt/",
+)
+def reimport(raw_dir, output_dir):
+    """Re-process raw ChatGPT API JSONs into schema-compliant conversations.
+
+    Clears existing schema conversations and manifest, then re-parses all
+    raw JSON files from a previous pull. Useful after parser improvements
+    (e.g. adding Code Interpreter, browsing, image support).
+
+    Does NOT re-download from ChatGPT — works entirely from local raw files.
+
+    Examples:
+        aishell chatgpt reimport
+        aishell chatgpt reimport --raw-dir ~/backup/chatgpt/raw
+    """
+    if output_dir:
+        data_dir = os.path.abspath(output_dir)
+        src_raw_dir = raw_dir or os.path.join(data_dir, "raw")
+        conversations_dir = os.path.join(data_dir, "conversations")
+        manifest_path = os.path.join(conversations_dir, "manifest.json")
+    else:
+        data_dir = DATA_DIR
+        src_raw_dir = raw_dir or RAW_DIR
+        conversations_dir = CONVERSATIONS_DIR
+        manifest_path = MANIFEST_PATH
+
+    # Verify raw dir exists and has files
+    json_files = sorted(globmod.glob(os.path.join(src_raw_dir, "*.json")))
+    if not json_files:
+        console.print(f"[red]No raw JSON files found in {src_raw_dir}[/red]")
+        return
+
+    console.print(f"[blue]Found {len(json_files)} raw file(s) in:[/blue] {src_raw_dir}")
+
+    # Clear existing conversations dir (but not raw/)
+    if os.path.exists(conversations_dir):
+        old_count = len(globmod.glob(os.path.join(conversations_dir, "*.json")))
+        shutil.rmtree(conversations_dir)
+        console.print(
+            f"[yellow]Cleared {old_count} existing schema files "
+            f"from {conversations_dir}[/yellow]"
+        )
+
+    os.makedirs(conversations_dir, exist_ok=True)
+
+    # Fresh manifest
+    manifest = {"conversations": []}
+    manifest_ids = set()
+    results = {"success": 0, "failed": 0, "empty": 0}
+
+    for i, filepath in enumerate(json_files, 1):
+        source_id = os.path.splitext(os.path.basename(filepath))[0]
+
+        try:
+            with open(filepath) as f:
+                conv_raw = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            console.print(f"  [red]Error reading {filepath}: {e}[/red]")
+            results["failed"] += 1
+            continue
+
+        # Extract metadata
+        meta = extract_chatgpt_meta(conv_raw)
+        title = meta["title"]
+
+        # Parse tree with the expanded parser
+        turns = _parse_chatgpt_conversation(conv_raw)
+
+        if not turns:
+            results["empty"] += 1
+            continue
+
+        # Convert to schema
+        converted = convert_to_schema(
+            source="chatgpt",
+            source_id=source_id,
+            title=title,
+            turns=turns,
+            model=meta["model"],
+            created_at=meta["created_at"],
+        )
+
+        # Save with collision handling
+        slug = slugify(title)
+        conv_path = os.path.join(conversations_dir, f"{slug}.json")
+        if os.path.exists(conv_path) and source_id:
+            slug = f"{slug}-{source_id[:8]}"
+            conv_path = os.path.join(conversations_dir, f"{slug}.json")
+
+        with open(conv_path, "w") as f:
+            json.dump(converted, f, indent=2, ensure_ascii=False)
+
+        stats = converted["statistics"]
+
+        # Progress every 100 or on last
+        if i % 100 == 0 or i == len(json_files):
+            console.print(
+                f"  [{i}/{len(json_files)}] {results['success']} OK, "
+                f"{results['empty']} empty, {results['failed']} failed"
+            )
+
+        # Update manifest
+        if source_id not in manifest_ids:
+            manifest["conversations"].append(
+                {
+                    "source_id": source_id,
+                    "title": title,
+                    "conv_id": converted["conversation"]["id"],
+                    "file": f"{slug}.json",
+                    "turn_count": stats["turn_count"],
+                    "total_chars": stats["total_chars"],
+                    "exported_at": converted["conversation"]["exported_at"],
+                }
+            )
+            manifest_ids.add(source_id)
+
+        results["success"] += 1
+
+    # Save manifest
+    save_manifest(manifest, manifest_path, conversations_dir)
+
+    # Summary
+    console.print()
+    summary = Table(title="ChatGPT Reimport Summary")
+    summary.add_column("Metric", style="cyan")
+    summary.add_column("Count", style="green")
+    summary.add_row("Reimported", str(results["success"]))
+    summary.add_row("Empty", str(results["empty"]))
+    summary.add_row("Failed", str(results["failed"]))
+    summary.add_row(
+        "Total", str(results["success"] + results["empty"] + results["failed"])
+    )
+    console.print(summary)
+    console.print(f"[dim]Data: {conversations_dir}[/dim]")
+    console.print(
+        "[dim]Next: delete chatgpt rows from DB, then run "
+        "'aishell conversations load' to re-embed.[/dim]"
+    )
