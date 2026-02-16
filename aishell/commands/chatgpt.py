@@ -74,13 +74,28 @@ def _find_root_id(mapping):
     return None
 
 
+def _extract_timestamp(message):
+    """Extract ISO 8601 timestamp from a ChatGPT message node."""
+    create_time = message.get("create_time")
+    if create_time:
+        try:
+            dt = datetime.fromtimestamp(create_time, tz=timezone.utc)
+            return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        except (ValueError, OSError, OverflowError):
+            pass
+    return None
+
+
 def _traverse_tree(mapping, root_id):
     """Walk the conversation tree to produce a linear list of turns.
 
     At each node, follows the last child (the "canonical" path ChatGPT shows).
-    Skips null messages and system messages.
+    Handles multiple content types: text, execution_output (Code Interpreter),
+    multimodal_text (images), tether_browsing_display, and thoughts/reasoning.
+    Skips system messages, reasoning_recap, and model_editable_context.
     """
     turns = []
+    pending_thoughts = None  # stash thoughts for next assistant turn
     current_id = root_id
 
     while current_id is not None:
@@ -92,30 +107,74 @@ def _traverse_tree(mapping, root_id):
         if message is not None:
             author_role = message.get("author", {}).get("role", "")
             content = message.get("content", {})
-            parts = content.get("parts", [])
+            content_type = content.get("content_type", "text")
 
-            # Skip system messages and empty content
-            if author_role in ("user", "assistant") and parts:
-                text = "\n".join(
-                    str(p) for p in parts if isinstance(p, str) and p.strip()
+            # Skip system messages and cosmetic/internal content types
+            if author_role == "system" or content_type in (
+                "reasoning_recap",
+                "model_editable_context",
+            ):
+                children = node.get("children", [])
+                current_id = children[-1] if children else None
+                continue
+
+            # Stash thoughts for the next assistant turn
+            if content_type == "thoughts":
+                thought_items = content.get("thoughts", [])
+                if thought_items:
+                    pending_thoughts = thought_items
+                children = node.get("children", [])
+                current_id = children[-1] if children else None
+                continue
+
+            # Extract text based on content_type
+            text = None
+
+            if content_type == "execution_output":
+                # Code Interpreter: code block + output
+                pieces = []
+                code = (
+                    message.get("metadata", {})
+                    .get("aggregate_result", {})
+                    .get("code", "")
                 )
-                if text.strip():
-                    timestamp = None
-                    create_time = message.get("create_time")
-                    if create_time:
-                        try:
-                            dt = datetime.fromtimestamp(create_time, tz=timezone.utc)
-                            timestamp = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-                        except (ValueError, OSError):
-                            pass
+                if code:
+                    pieces.append(f"```python\n{code}\n```")
+                output = content.get("text", "")
+                if output and output.strip():
+                    pieces.append(f"Output:\n{output.strip()}")
+                text = "\n\n".join(pieces)
+                author_role = "tool"
 
-                    turns.append(
-                        {
-                            "role": author_role,
-                            "content": text.strip(),
-                            "timestamp": timestamp,
-                        }
-                    )
+            elif content_type == "tether_browsing_display":
+                result = content.get("result", "")
+                summary = content.get("summary", "")
+                text = result or summary
+                author_role = "tool"
+
+            else:
+                # text, multimodal_text, or unknown — extract from parts
+                parts = content.get("parts", [])
+                if parts:
+                    pieces = []
+                    for p in parts:
+                        if isinstance(p, str) and p.strip():
+                            pieces.append(p.strip())
+                        elif isinstance(p, dict):
+                            pieces.append("[image]")
+                    text = "\n".join(pieces)
+
+            if text and text.strip():
+                turn = {
+                    "role": author_role,
+                    "content": text.strip(),
+                    "timestamp": _extract_timestamp(message),
+                }
+                # Attach stashed thoughts to the next assistant turn
+                if author_role == "assistant" and pending_thoughts:
+                    turn["metadata"] = {"thoughts": pending_thoughts}
+                    pending_thoughts = None
+                turns.append(turn)
 
         # Follow the last child (canonical branch)
         children = node.get("children", [])
