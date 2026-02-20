@@ -44,9 +44,8 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Transcript and Log files (may contain sensitive data)
-LLMTranscript.md
-LLMErrors.md
+# Transcript, log files, and generated outputs
+outputs/
 
 # Python package build artifacts
 *.egg-info/
