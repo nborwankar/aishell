@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS turns (
     id              SERIAL PRIMARY KEY,
     conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     turn_number     INT NOT NULL,
-    role            TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    role            TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
     content         TEXT NOT NULL,
     timestamp       TIMESTAMPTZ,
     attachments     JSONB DEFAULT '[]',
