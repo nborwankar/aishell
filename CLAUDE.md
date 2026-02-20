@@ -30,47 +30,69 @@ flake8 aishell/
 aishell --help
 ```
 
-## Architecture & Structure
+## Project Directory Structure
 
 ```
-aishell/
-├── __init__.py           # Package metadata
-├── cli.py               # Main CLI entry point with Click commands
-├── commands/            # Command plugins (auto-discovered via module scanning)
-│   ├── __init__.py      # discover_commands() + skill registry
-│   ├── gemini.py        # Gemini: login, pull, import + SKILL metadata
-│   ├── chatgpt.py       # ChatGPT: login, pull, import + SKILL metadata
-│   ├── claude_export.py # Claude: login, pull, import + SKILL metadata
-│   └── conversations/   # Shared export infrastructure + SKILL metadata
-│       ├── __init__.py
-│       ├── browser.py   # Chrome/CDP helpers, fetch_json, chrome_login
-│       ├── schema.py    # slugify, ROLE_MAP, convert_to_schema
-│       ├── manifest.py  # load/save manifest, already_exported
-│       ├── db.py        # PostgreSQL + pgvector setup + query helpers
-│       ├── embeddings.py # nomic-embed-text-v1.5 wrapper
-│       ├── cli.py       # conversations load, browse, search commands
-│       └── tui.py       # Textual TUI conversation browser
-├── search/              # Search functionality
-│   ├── __init__.py
-│   ├── web_search.py    # Playwright-based web search (Google, DuckDuckGo)
-│   └── file_search.py   # macOS native file search (Spotlight, find)
-├── shell/               # Intelligent shell
-│   ├── __init__.py
-│   ├── intelligent_shell.py  # Main shell with history, aliases, git awareness
-│   └── nl_converter.py  # Natural language to command conversion
-└── utils/               # Utility functions
-    ├── __init__.py
-    ├── transcript.py    # LLM interaction logging
-    └── env_manager.py   # Environment variable management
-
-config/                  # Configuration templates
-scripts/                 # Helper scripts
-docs/                    # Design docs (JSONB_PLAN.md, etc.)
-
-~/.aishell/{gemini,chatgpt,claude}/  # Per-provider data (created at runtime)
-├── raw/                 # Raw API/DOM extraction JSONs
-├── conversations/       # Schema-compliant JSONs + manifest.json
-└── scan.json            # Latest dry-run scan results
+aishell/                          # Project root
+├── CLAUDE.md                     # Project instructions (this file)
+├── DONE.md                       # Completed work log
+├── TODO.md                       # Ongoing task list
+├── NEXT_SESSION.md               # Session handoff notes
+├── README.md                     # Project documentation
+├── CHANGELOG.md                  # Release history
+├── LICENSE                       # License
+├── requirements.txt              # Dependencies
+├── setup.py                      # Package config
+│
+├── aishell/                      # Source code
+│   ├── __init__.py               # Package metadata
+│   ├── cli.py                    # Main CLI entry point with Click commands
+│   ├── commands/                 # Command plugins (auto-discovered)
+│   │   ├── __init__.py           # discover_commands() + skill registry
+│   │   ├── gemini.py             # Gemini: login, pull, import
+│   │   ├── chatgpt.py            # ChatGPT: login, pull, import, reimport
+│   │   ├── claude_export.py      # Claude: login, pull, import
+│   │   └── conversations/        # Shared export infrastructure
+│   │       ├── browser.py        # Chrome/CDP helpers, fetch_json
+│   │       ├── schema.py         # slugify, ROLE_MAP, convert_to_schema
+│   │       ├── manifest.py       # load/save manifest, already_exported
+│   │       ├── db.py             # PostgreSQL + pgvector setup + queries
+│   │       ├── embeddings.py     # nomic-embed-text-v1.5 wrapper
+│   │       ├── cli.py            # conversations load, browse, search
+│   │       └── tui.py            # Textual TUI conversation browser
+│   ├── search/                   # Search functionality
+│   │   ├── web_search.py         # Playwright-based (Google, DuckDuckGo)
+│   │   └── file_search.py        # macOS native (Spotlight, find)
+│   ├── shell/                    # Intelligent shell
+│   │   ├── intelligent_shell.py  # History, aliases, git awareness
+│   │   └── nl_converter.py       # Natural language to command
+│   └── utils/                    # Utility functions
+│       ├── transcript.py         # LLM interaction logging → outputs/
+│       └── env_manager.py        # Environment variable management
+│
+├── tests/                        # Test suite (pytest)
+├── scripts/                      # Helper scripts (quick_test.py)
+├── config/                       # Configuration templates
+├── docs/                         # All documentation
+│   ├── plans/                    # Implementation plans
+│   ├── SKILLS_PLAN.md            # Skills extension design
+│   ├── JSONB_PLAN.md             # Database schema evolution
+│   ├── PARAGRAPH_CHUNKING_PLAN.md
+│   ├── MLX_BUG_FIX.md           # MLX SEQ_LENS monkey-patch
+│   ├── DEVELOPMENT_NOTES.md      # Dev reference
+│   ├── TESTING_GUIDE.md          # Test reference
+│   ├── TUTORIAL.md               # User tutorial
+│   └── ...
+├── outputs/                      # Generated artifacts (gitignored)
+│   ├── LLMTranscript.md          # Runtime LLM interaction logs
+│   ├── LLMErrors.md              # Runtime LLM error logs
+│   └── ...                       # Search results, test outputs
+├── usecases/                     # Use case examples
+│
+└── ~/.aishell/{gemini,chatgpt,claude}/  # Per-provider data (runtime)
+    ├── raw/                      # Raw API/DOM extraction JSONs
+    ├── conversations/            # Schema-compliant JSONs + manifest.json
+    └── scan.json                 # Latest dry-run scan results
 ```
 
 ## Key Features Implemented
@@ -124,7 +146,7 @@ Commands are auto-discovered via module scanning — drop a `.py` file (or packa
 - **Plugin Architecture**: Module scanning auto-discovers command groups + skill metadata
 - **Pluggable Architecture**: Support for multiple LLM providers and NL converters
 - **Environment Configuration**: .env file loading on startup with reload capability
-- **Transcript Logging**: All LLM interactions logged to LLMTranscript.md with errors in LLMErrors.md
+- **Transcript Logging**: All LLM interactions logged to `outputs/LLMTranscript.md` with errors in `outputs/LLMErrors.md`
 - **Native Tools**: Leverages system tools rather than pure Python for performance
 
 ### Conversation Export Notes
