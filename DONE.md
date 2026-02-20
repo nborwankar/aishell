@@ -1,5 +1,75 @@
 # DONE - Development Log
 
+## Project Directory Reorganization + ChatGPT Reimport + WASM Docs — 2026-02-19
+
+### Overview
+Major cleanup session: reorganized the project directory structure, added `chatgpt reimport` command, extracted WASM component documentation from a ChatGPT conversation, wrote a path simulator design doc, and moved runtime artifacts to a gitignored `outputs/` directory.
+
+### Directory Reorganization
+Moved all documentation `.md` files from root to `docs/`, created `outputs/` for generated artifacts.
+
+| Action | Files |
+|---|---|
+| Root → `docs/` | DEVELOPMENT_NOTES, EXAMPLE_SEARCH, FORLATER, HOOKS_TODO, PROJECT_STATUS, QUICKSTART, SYNTAX_OPTIONS, TESTING_GUIDE, TUTORIAL, VERSIONING |
+| Root → `scripts/` | quick_test.py |
+| Root → `outputs/` | icici_homepage.png, LLMTranscript.md, LLMErrors.md, dltest/ |
+| `docs/` → `outputs/` | search_embeddings_gemini.txt, search_manifold_geometry.txt, search_tree_embeddings_gemini.txt |
+
+**Root now contains only**: state management files (CLAUDE.md, DONE.md, TODO.md, NEXT_SESSION.md, README.md), config files (requirements.txt, setup.py, LICENSE, CHANGELOG.md), and directories.
+
+### Transcript Logging Path Fix
+Updated `aishell/utils/transcript.py` — `get_transcript_manager()` now writes `LLMTranscript.md` and `LLMErrors.md` to `outputs/` (relative to project root) instead of CWD. The `outputs/` directory is gitignored.
+
+### ChatGPT Reimport Command
+Added `aishell chatgpt reimport` to re-process all raw API JSONs with the expanded content-type-aware parser without re-downloading from ChatGPT. Clears existing schema conversations and rebuilds manifest. Options: `--raw-dir`, `--output-dir`.
+
+Smoke-tested with dltest files: WASM conversation went from 69→81 turns, 281K→346K chars, +12 tool turns, +3 thought-bearing assistant turns.
+
+### WASM Component Docs → wasmkit/components
+Extracted 6 topic-organized markdown files from the "Server-Side WASM Components" ChatGPT conversation, plus wrote a new `SIMULATOR_DESIGN.md` (path simulator that combines data sheet contracts with property-based input generation). All 7 files moved to `~/pgh/wasmkit/components/docs/`. Also moved `IC_DATASHEET_ANALYSIS.md` and `COMPONENT_PLAN.md` from wasmkit root to its `docs/`.
+
+| File | Content |
+|---|---|
+| `01_SCIR_MLIR_DIALECT.md` | MLIR dialect definitions |
+| `02_COMPONENT_DATASHEET_DSL.md` | Strictly-typed YAML datasheets |
+| `03_ASSEMBLY_DSL.md` | System wiring language |
+| `04_PRIVATE_CATALOG_MANIFEST.md` | Full ~30 component catalog |
+| `05_VALIDATION_REPORTS.md` | Type closure, branch completeness, failure closure checks |
+| `06_POC_CLI_SCAFFOLDING.md` | Repo structure and CLI usage |
+| `SIMULATOR_DESIGN.md` | **New** — "SPICE for software" path simulator design |
+
+### .gitignore Update
+Replaced separate `LLMTranscript.md` / `LLMErrors.md` entries with a single `outputs/` ignore rule.
+
+### Files Changed (aishell repo)
+
+| File | Change |
+|---|---|
+| `aishell/commands/chatgpt.py` | Added `reimport` command (+156 lines), `glob`/`shutil` imports |
+| `aishell/utils/transcript.py` | Log files now write to `outputs/` instead of CWD |
+| `.gitignore` | `outputs/` replaces individual LLM log entries |
+| `CLAUDE.md` | Updated directory structure diagram + transcript path |
+| 10 `.md` files | Moved from root to `docs/` |
+| `quick_test.py` | Moved from root to `scripts/`, updated TUTORIAL.md reference |
+| 3 `.txt` files | Moved from `docs/` to `outputs/` |
+| 6 wasm `.md` files | Removed (moved to wasmkit/components) |
+
+### Git Commits (aishell)
+- `78a5a07` — feat: Add chatgpt reimport command
+- `f032b33` — refactor: Reorganize project directory structure
+- `a718f96` — refactor: Move WASM component docs to wasmkit/components
+- `1e609fc` — refactor: Move search result dumps to outputs/
+- `6969031` — refactor: Move runtime artifacts to outputs/, update .gitignore
+- `0552b5d` — fix: Write LLM transcript logs to outputs/
+- `c69999b` — docs: Update CLAUDE.md with reorganized directory structure
+
+### Git Commits (wasmkit/components)
+- `b86a946` — docs: Add ChatGPT-extracted code snippets and simulator design
+- `72a9164` — refactor: Move IC_DATASHEET_ANALYSIS.md to docs/
+- `4798891` — refactor: Move COMPONENT_PLAN.md to docs/
+
+---
+
 ## ChatGPT Parser Content-Type Expansion + Test Fixes — 2026-02-16
 
 ### Overview
