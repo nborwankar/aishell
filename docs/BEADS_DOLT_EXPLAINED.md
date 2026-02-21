@@ -79,6 +79,95 @@ Git repo                    ←── how it travels to other machines
 
 Real git only enters the picture at the JSONL layer.
 
+## "Is Dolt a MySQL fork?"
+
+No. Dolt shares **zero code** with MySQL. It is a ground-up Go implementation that speaks the MySQL wire protocol. The architecture:
+
+```
+┌─────────────────────────────┐
+│  MySQL wire protocol        │  ← Any MySQL client connects here
+├─────────────────────────────┤
+│  go-mysql-server            │  ← SQL parser + query engine (pure Go)
+├─────────────────────────────┤
+│  Dolt storage engine        │  ← Prolly trees (probabilistic B-trees)
+├─────────────────────────────┤
+│  Noms-derived chunk store   │  ← Content-addressed, immutable chunks
+└─────────────────────────────┘
+```
+
+### The layers
+
+- **MySQL wire protocol**: Any MySQL client, driver, or ORM can connect. But it's a reimplementation of the protocol, not MySQL's code.
+- **go-mysql-server**: An open-source SQL engine also built by DoltHub. Implements MySQL's query parsing and execution from scratch in Go.
+- **Prolly trees**: The key innovation — probabilistic B-trees that give structural sharing between versions. When you change one row, only the affected tree nodes get new hashes; everything else is shared with the previous version. This is what makes branching cheap and cell-level merge possible.
+- **Noms-derived chunk store**: Content-addressed storage inherited from Noms, an earlier database by the same team. Data is stored as immutable, hash-identified chunks (like git objects).
+
+### Why this matters
+
+- MySQL-*compatible* (you can use the `mysql` CLI, any MySQL driver) but not MySQL
+- No GPL licensing concerns (Dolt is Apache 2.0)
+- The storage engine is purpose-built for versioning — not bolted on after the fact
+- Embedded mode works as a Go library (no separate server process needed)
+
+## "Could you build a SQLite version of Dolt?"
+
+Yes, in principle. You'd drop the MySQL wire protocol (not needed — SQLite is in-process) and build versioning on top of SQLite's existing query engine. The key enabler is the **SQLite session extension**, which already records cell-level changesets.
+
+### Architecture
+
+```
+┌─────────────────────────────┐
+│  SQLite query engine         │  ← Already embedded, no server
+├─────────────────────────────┤
+│  Version control layer       │  ← commit, branch, merge, diff, log
+│  (SQLite session extension)  │  ← Records changesets (built into SQLite!)
+├─────────────────────────────┤
+│  Storage                     │
+│  base.db + changeset chain   │  ← Current state + chain of diffs
+└─────────────────────────────┘
+```
+
+### How it would work
+
+```
+sqlite-vcs/
+├── base.db              ← Current state (regular SQLite file)
+└── .history/
+    ├── commits.db       ← Commit graph + changeset blobs
+    └── branches.json    ← Branch pointers
+```
+
+1. **Open** `base.db`, enable session recording
+2. **Work** — normal SQL queries
+3. **Commit** → extract changeset from session, store as blob in `commits.db`
+4. **Branch** → new entry in branches pointing to current commit
+5. **Checkout** → apply/invert changesets to transform `base.db` to target state
+6. **Merge** → apply changesets from source branch; session extension detects cell-level conflicts
+7. **Diff** → compare two changesets
+
+### Prior art
+
+- **Fossil** — by SQLite's creator (D. Richard Hipp). A VCS that uses SQLite as storage, but versions *files* not *rows*.
+- **cr-sqlite** — CRDT-based merge for SQLite. Multi-writer merge without conflicts, but no commit/branch/log model.
+- **SQLite session extension** — built-in changeset recording. The foundation you'd build on.
+
+### Difficulty assessment
+
+| Aspect | Difficulty | Why |
+|---|---|---|
+| Basic commit/log | Easy | Changeset blobs + metadata table |
+| Branching | Medium | Checkout requires applying/inverting changeset chains |
+| Cell-level merge | Medium | Session extension handles conflict detection |
+| Structural sharing | Hard | Without prolly trees, storage grows linearly with commits |
+| Performance at scale | Hard | Changeset chains get slow for deep history |
+
+### Honest estimate
+
+- **Working prototype** (commit/branch/merge on small DBs): a few weeks in Python using the SQLite session extension
+- **Production-quality** system competitive with Dolt: person-years, because the storage layer (structural sharing via content-addressed prolly trees) is where the real engineering lives
+
+The SQLite session extension is the unlock — it gives you changesets for free. The question is whether changeset chains scale for your use case, or whether you'd eventually need content-addressed storage (at which point you're basically rebuilding Dolt's storage engine on top of SQLite's pager).
+
 ## The CGO connection
 
 Dolt's storage engine uses a Go wrapper around ICU (International Components for Unicode) for collation/sorting, which requires CGO (C bindings from Go).
