@@ -1,5 +1,47 @@
 # DONE - Development Log
 
+## Beads Framework Integration — 2026-02-20
+
+### Overview
+Researched, installed, and integrated Steve Yegge's Beads (`bd`) framework as a git-backed issue tracker for AI agent session continuity. Initialized aishell as the pilot project with structured epics and tasks.
+
+### Installation
+- Built `bd` v0.55.3 from source with `CGO_ENABLED=1` + ICU flags (pre-built binary lacked CGO for Dolt)
+- Binary at `~/.local/bin/bd`
+
+### Claude Code Integration
+- Ran `bd setup claude` → `bd prime` hooks on SessionStart and PreCompact
+- Added Beads workflow section to global `~/.claude/CLAUDE.md` (session start/during/end rituals)
+- Beads replaces TODO.md and NEXT_SESSION.md in Beads-enabled projects; DONE.md kept for narrative logs
+
+### Pilot Project: aishell
+- `bd init --prefix aishell` with Dolt backend
+- Created 2 epics + 7 tasks with parent-child and sequential dependencies:
+  - `aishell-024` (P1 epic): Conversation Browser TUI + `-c` flag (5 tasks)
+  - `aishell-zvi` (P2 epic): Unified aisearch CLI (2 tasks)
+
+### Beads Skill
+- Created `~/.claude/skills/beads/SKILL.md` — intent-to-command translation table
+- English → `bd` commands with priority/type inference from natural language
+
+### Safety Hook
+- PreToolUse hook blocks bare `bd sync` (pushes to remote)
+- `bd sync --no-push` allowed (local sync)
+- `bd sync --force` allowed (explicit push when intended)
+
+### Documentation (5 files in docs/)
+- `BEADS_SUMMARY.md` — full framework overview
+- `BEADS_PRACTICAL_REFERENCE.md` — command reference with gotchas
+- `BEADS_DOLT_EXPLAINED.md` — Dolt deep-dive (what it is, architecture, MySQL fork Q&A, SQLite alternative analysis)
+- `BEADS_CHEATSHEET.md` — one-page quick start
+- `BEADS_INTEGRATION_PLAN.md` — 5-phase rollout (Phases 1-4 complete)
+
+### Key Commits
+- `1dbeee3` — docs: Add Beads framework integration and reference docs
+- `588de81` — docs: Expand Dolt explainer with architecture, MySQL fork Q&A, and SQLite alternative analysis
+
+---
+
 ## Project Directory Reorganization + ChatGPT Reimport + WASM Docs — 2026-02-19
 
 ### Overview
