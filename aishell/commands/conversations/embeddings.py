@@ -25,7 +25,7 @@ def _patch_seq_lens():
     The library hardcodes SEQ_LENS with max 512, but nomic-embed-text-v1.5 supports
     2048 tokens. Without this patch, inputs >512 tokens crash in _sort_inputs().
     See: https://github.com/taylorai/mlx_embedding_models/issues/7
-    See: docs/MLX_BUG_FIX.md
+    See: docs/dev/MLX_BUG_FIX.md
     """
     import mlx_embedding_models.embedding as _mlx_emb
 

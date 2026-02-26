@@ -74,15 +74,25 @@ aishell/                          # Project root
 ├── scripts/                      # Helper scripts (quick_test.py)
 ├── config/                       # Configuration templates
 ├── docs/                         # All documentation
+│   ├── guides/                   # User-facing tutorials and guides
+│   │   ├── TUTORIAL.md           # User tutorial
+│   │   ├── QUICKSTART.md         # Quick start guide
+│   │   ├── CONVAIX_GUIDE.md      # ConvAIx getting started
+│   │   └── EXAMPLE_SEARCH.md     # Search examples
 │   ├── plans/                    # Implementation plans
-│   ├── SKILLS_PLAN.md            # Skills extension design
-│   ├── JSONB_PLAN.md             # Database schema evolution
-│   ├── PARAGRAPH_CHUNKING_PLAN.md
-│   ├── MLX_BUG_FIX.md           # MLX SEQ_LENS monkey-patch
-│   ├── DEVELOPMENT_NOTES.md      # Dev reference
-│   ├── TESTING_GUIDE.md          # Test reference
-│   ├── TUTORIAL.md               # User tutorial
-│   └── ...
+│   │   ├── SKILLS_PLAN.md        # Skills extension design
+│   │   ├── JSONB_PLAN.md         # Database schema evolution
+│   │   ├── PARAGRAPH_CHUNKING_PLAN.md
+│   │   └── ...
+│   ├── beads/                    # Beads task tracker reference
+│   │   ├── BEADS_PRACTICAL_REFERENCE.md
+│   │   └── ...
+│   ├── dev/                      # Developer reference
+│   │   ├── DEVELOPMENT_NOTES.md  # Dev reference
+│   │   ├── TESTING_GUIDE.md      # Test reference
+│   │   ├── MLX_BUG_FIX.md       # MLX SEQ_LENS monkey-patch
+│   │   └── VERSIONING.md        # Version policy
+│   └── archive/                  # Historical / stale docs
 ├── outputs/                      # Generated artifacts (gitignored)
 │   ├── LLMTranscript.md          # Runtime LLM interaction logs
 │   ├── LLMErrors.md              # Runtime LLM error logs
@@ -132,7 +142,7 @@ aishell conversations browse -s gemini       # TUI pre-filtered by source
 **TUI Browser**: Two-panel Textual app — conversation list (left) + turn viewer (right). Keybindings: `/` search, `1`/`2`/`3`/`0` source filter, `q` quit.
 
 ### Plugin Architecture (2026-02)
-Commands are auto-discovered via module scanning — drop a `.py` file (or package with `cli.py`) into `aishell/commands/` and it registers automatically. Each module MAY export a `SKILL` dict with description, capabilities, examples, and agent-callable tool definitions. The registry is internal (`list_skills()`, `get_skill()`) — not user-facing. See `docs/SKILLS_PLAN.md`.
+Commands are auto-discovered via module scanning — drop a `.py` file (or package with `cli.py`) into `aishell/commands/` and it registers automatically. Each module MAY export a `SKILL` dict with description, capabilities, examples, and agent-callable tool definitions. The registry is internal (`list_skills()`, `get_skill()`) — not user-facing. See `docs/plans/SKILLS_PLAN.md`.
 
 **Approach**: ChatGPT and Claude use `fetch_json()` (page.evaluate + fetch with inherited cookies) to call internal APIs. Gemini uses DOM scraping. All produce the same schema.
 
@@ -161,8 +171,8 @@ Commands are auto-discovered via module scanning — drop a `.py` file (or packa
 - **Embedding Prefixes**: nomic model requires `search_document:` for storage, `search_query:` for queries
 - **Database**: PostgreSQL `conversation_export` with pgvector HNSW index, auto-provisioned by `load`
 - **Embedding Backend**: MLX via `mlx-embedding-models` (taylorai) — native Apple Silicon GPU
-- **MLX SEQ_LENS Bug**: Library hardcodes max 512 tokens but nomic supports 2048. Monkey-patched in `embeddings.py`. See `docs/MLX_BUG_FIX.md`
-- **Chunking**: Paragraph-level (`\n\n` split, merge <50 chars). Context prefix `[title] role:` for embedding. See `docs/PARAGRAPH_CHUNKING_PLAN.md`
+- **MLX SEQ_LENS Bug**: Library hardcodes max 512 tokens but nomic supports 2048. Monkey-patched in `embeddings.py`. See `docs/dev/MLX_BUG_FIX.md`
+- **Chunking**: Paragraph-level (`\n\n` split, merge <50 chars). Context prefix `[title] role:` for embedding. See `docs/plans/PARAGRAPH_CHUNKING_PLAN.md`
 - **Schema**: V1 (conversations+turns) → V2 (conversations_raw+turn_embeddings) → V3 (chunk_embeddings with paragraph text stored)
 
 ## Development Workflow

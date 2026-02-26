@@ -10,7 +10,7 @@ Convention:
 Skill metadata (optional):
     - Export a SKILL dict alongside the Click group for richer discoverability.
     - Modules without SKILL get a basic entry auto-generated from Click metadata.
-    - See docs/SKILLS_PLAN.md for the full convention.
+    - See docs/plans/SKILLS_PLAN.md for the full convention.
 """
 
 import importlib

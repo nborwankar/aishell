@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11, Click (CLI), Rich (output), sqlite-vec (vectors), mlx-embedding-models (embeddings), Playwright (providers, optional)
 
-**Source reference:** All code extracted/adapted from `/Users/nitin/Projects/github/etcprojects/aishell/aishell/commands/conversations/`
+**Source reference:** All code extracted/adapted from `/Users/nitin/Projects/github/aishell/aishell/commands/conversations/`
 
 ---
 

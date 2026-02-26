@@ -93,7 +93,7 @@ def main():
     )
 
     print("\n✅ Quick tests completed!")
-    print("\n📖 For full tutorial, see docs/TUTORIAL.md")
+    print("\n📖 For full tutorial, see docs/guides/TUTORIAL.md")
     print("\n🔧 Manual testing commands:")
     print("source venv/bin/activate")
     print("aishell find '*.py' --limit 5")
