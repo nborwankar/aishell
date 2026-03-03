@@ -148,6 +148,13 @@ Commands are auto-discovered via module scanning — drop a `.py` file (or packa
 
 **Scale**: 1,764 conversations pulled (Gemini 33, ChatGPT 811, Claude 920), zero failures.
 
+### Task Planner Skill (2026-03)
+Managed task layer that abstracts beads infrastructure:
+- `/plan "feature"` — decompose into epic + tasks with dependencies
+- `/track` — sync git changes to beads (transparent, evidence-based)
+- `/propagate` — find downstream consumers when shipping libraries
+Learning logs saved to `.beads/plans/`. See `docs/plans/2026-03-03-task-planner-design.md`.
+
 ## Important Implementation Notes
 
 - **macOS Focused**: File search optimized for macOS using `mdfind`, `find`, `grep`, `mdls`
