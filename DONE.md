@@ -1,5 +1,47 @@
 # DONE - Development Log
 
+## Docs Reorg + Task Planner Skill — 2026-02-25 to 2026-03-03
+
+### Docs Reorganization (Feb 25)
+- Reorganized flat `docs/` directory (25 files) into 5 categorized subdirectories:
+  - `docs/guides/` — TUTORIAL, QUICKSTART, CONVAIX_GUIDE, EXAMPLE_SEARCH
+  - `docs/plans/` — all implementation plans (SKILLS, JSONB, MLX, HYBRID_SEARCH, etc.)
+  - `docs/beads/` — BEADS_CHEATSHEET, DOLT_EXPLAINED, PRACTICAL_REFERENCE, SUMMARY
+  - `docs/dev/` — DEVELOPMENT_NOTES, TESTING_GUIDE, MLX_BUG_FIX, SYNTAX_OPTIONS, VERSIONING
+  - `docs/archive/` — PROJECT_STATUS, HOOKS_TODO, FORLATER (stale Jun-Nov 2025)
+- Updated 6 cross-references in CLAUDE.md, source code, scripts, and global CLAUDE.md
+
+### Agent Orchestration Research (Feb 25-26)
+- Researched ccli (Claude Code CLI orchestrator) — architecture, TOML config, use cases
+- Designed **scatter-gather** pattern for multi-project research workflows
+- Researched **Ralph Wiggum Loop** — autonomous overnight agent loops with filesystem-persisted state
+- Documented both patterns: `docs/dev/SCATTER_GATHER_AND_RALPH_LOOP.md`
+- Analyzed beads value proposition for solo developer: `docs/dev/BEADS_VALUE_PROPOSITION.md`
+  - Key insight: beads isn't about making *you* faster — it's about making projects legible to autonomous agents
+
+### Task Planner Skill (Mar 3)
+- Designed and implemented `task-planner` skill — managed layer between user and beads
+- Three modes:
+  - `/plan "feature"` — decompose feature into epic + tasks with dependencies (Mode A)
+  - `/track` — sync git changes to beads, evidence-based, propose-then-approve (Mode C)
+  - `/propagate` — find downstream consumers when shipping libraries (Mode B)
+- Installed at `~/.claude/skills/task-planner/SKILL.md` (global, works in any beads-enabled project)
+- Created `.beads/plans/` directory for learning logs
+- Design doc: `docs/plans/2026-03-03-task-planner-design.md`
+- Implementation plan: `docs/plans/2026-03-03-task-planner-implementation.md`
+- Core analogy: beads as invisible infrastructure (like Java GC), user thinks in features/outcomes
+
+### Key Commits
+- `44d20fe` — docs: Reorganize flat docs/ into categorized subdirectories
+- `cc23e75` — docs: Add scatter-gather and Ralph Wiggum loop orchestration patterns
+- `094e58f` — docs: Add beads value proposition analysis
+- `aab7504` — docs: Add task-planner skill design
+- `aca64d0` — docs: Add task-planner skill implementation plan
+- `b108fcb` — chore: Add .beads/plans/ directory for learning logs
+- `94cbb20` — docs: Add task-planner skill reference to CLAUDE.md
+
+---
+
 ## Beads Framework Integration — 2026-02-20
 
 ### Overview

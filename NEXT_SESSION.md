@@ -1,56 +1,47 @@
 # Next Session — aishell
 
-**Date**: 2026-02-20
+**Date**: 2026-03-13
 **Branch**: main
-**Last commit**: 588de81 (docs: Expand Dolt explainer with architecture, MySQL fork Q&A, and SQLite alternative analysis)
+**Last commit**: 94cbb20 (docs: Add task-planner skill reference to CLAUDE.md)
 
-## What Was Done This Session
+## What Was Done (Feb 25 — Mar 3 sessions)
 
-1. **Beads framework installed** — `bd` v0.55.3 built from source with CGO+ICU. Binary at `~/.local/bin/bd`.
-2. **Claude Code integration** — `bd setup claude` hooks (SessionStart + PreCompact), global CLAUDE.md updated with Beads workflow.
-3. **aishell initialized as Beads pilot** — `bd init --prefix aishell`, 2 epics + 7 tasks with dependencies.
-4. **Beads skill created** — `~/.claude/skills/beads/SKILL.md` for English → `bd` command translation.
-5. **Safety hook** — `bd sync` blocked by PreToolUse hook; `--no-push` and `--force` allowed.
-6. **5 Beads docs** — summary, practical reference, Dolt deep-dive, cheatsheet, integration plan.
-
-## Key Commits (this session)
-
-- `1dbeee3` — docs: Add Beads framework integration and reference docs
-- `588de81` — docs: Expand Dolt explainer with architecture, MySQL fork Q&A, and SQLite alternative analysis
-
-## Beads State
-
-Run `bd ready` to see what's actionable. Current issues:
-
-```
-aishell-024 [epic P1] Conversation Browser TUI + -c flag
-  ├── aishell-4bq [P0] Add -c flag to aisearch          ← READY
-  ├── aishell-rco [P0] DB helpers for TUI                ← READY (after epic unblocked)
-  ├── aishell-6xa [P1] Build Textual TUI                 ← blocked by rco
-  ├── aishell-lu8 [P1] Search integration in TUI         ← blocked by 6xa
-  └── aishell-p9o [P2] Keyboard shortcuts + filters      ← blocked by 6xa
-
-aishell-zvi [epic P2] Unified aisearch CLI
-  ├── aishell-e2v [P1] -f file search flag               ← blocked by epic
-  └── aishell-bii [P1] -w web search flag                ← blocked by epic
-```
+1. **Docs reorg** — flat docs/ (25 files) → 5 subdirectories (guides/, plans/, beads/, dev/, archive/). All cross-references updated.
+2. **Agent orchestration research** — scatter-gather pattern + Ralph Wiggum loop documented in `docs/dev/`.
+3. **Beads value proposition** — analyzed when beads pays off (not solo workflow, but agent-readable task infrastructure for Ralph loops and scatter-gather).
+4. **Task-planner skill created** — `~/.claude/skills/task-planner/SKILL.md` (global skill, 3 modes: /plan, /track, /propagate).
+5. **Implementation plan written** — 7 tasks, Tasks 1-2 + 7 complete, Tasks 3-4 need testing in fresh session.
 
 ## What's Next
 
-### Immediate — Beads Phase 5
-- Initialize Beads in other hot projects (strictRAG, n2, etc.)
-- Use `bd init --stealth` for repos where you don't want .beads/ committed
+### Immediate — Test task-planner skill (Tasks 3-4 from implementation plan)
+- Start fresh Claude Code session in aishell
+- Test `/plan "some feature"` — verify Mode A decomposition works end-to-end
+- Test `/track` — verify Mode C maps git diff to beads close/create proposals
+- Iterate on SKILL.md based on results (Task 6)
+- See `docs/plans/2026-03-03-task-planner-implementation.md` for full plan
 
-### Immediate — ChatGPT Reimport (from previous session)
-- Run `aishell chatgpt reimport` on full 811 conversations
-- Delete chatgpt rows from PostgreSQL, re-run `aishell conversations load`
+### Deferred — Task 5: Test /propagate (Mode B)
+- Requires beads initialized in 2+ projects
+- Initialize beads in n2, embedding_tools, strictRAG, or ccli first
+- Then test cross-project consumer discovery
 
-### Planned — aishell features (now tracked in Beads)
-- Claim `aishell-024` epic, start with `aishell-4bq` (-c flag)
-- All feature work now tracked via `bd ready` / `bd close`
+### Ongoing — Beads state (from Feb 20, unchanged)
+Run `bd ready` to see actionable work:
+```
+aishell-024 [epic P1] Conversation Browser TUI + -c flag (5 child tasks)
+aishell-zvi [epic P2] Unified aisearch CLI (2 child tasks)
+```
+
+### From previous session (still pending)
+- ChatGPT reimport: `aishell chatgpt reimport` on 811 conversations
+- Initialize beads in other hot projects (n2, strictRAG, embedding_tools)
 
 ## Key Files
-- `~/.claude/skills/beads/SKILL.md` — Beads skill (not in git, lives in Claude config)
-- `~/.claude/settings.json` — hooks including bd sync blocker
-- `docs/BEADS_*.md` — all Beads documentation (5 files)
-- `.beads/` — Beads database and config
+- `~/.claude/skills/task-planner/SKILL.md` — task-planner skill (not in git)
+- `~/.claude/skills/beads/SKILL.md` — beads skill (raw escape hatch)
+- `docs/plans/2026-03-03-task-planner-design.md` — approved design
+- `docs/plans/2026-03-03-task-planner-implementation.md` — implementation plan
+- `docs/dev/SCATTER_GATHER_AND_RALPH_LOOP.md` — orchestration patterns
+- `docs/dev/BEADS_VALUE_PROPOSITION.md` — when beads pays off
+- `.beads/plans/` — learning log directory (empty, ready for first use)
