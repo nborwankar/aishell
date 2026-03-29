@@ -18,7 +18,8 @@ Added `aishell pfind` subcommand — fast project lookup across 120+ projects in
 
 ### Key Commits
 - `cfe93fa` — feat(pfind): project finder with inverted index — 16 tests passing
-- TBD — feat(pfind): improved fuzzy search with multi-signal scoring — 21 tests
+- `c6b1d8e` — feat(pfind): improved fuzzy search with multi-signal scoring — 21 tests
+- `370da93` — chore: clean up stale tracking files (TODO.md, NEXT_SESSION.md, outputs/)
 
 ---
 

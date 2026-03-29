@@ -36,8 +36,6 @@ aishell --help
 aishell/                          # Project root
 ├── CLAUDE.md                     # Project instructions (this file)
 ├── DONE.md                       # Completed work log
-├── TODO.md                       # Ongoing task list
-├── NEXT_SESSION.md               # Session handoff notes
 ├── README.md                     # Project documentation
 ├── CHANGELOG.md                  # Release history
 ├── LICENSE                       # License
