@@ -154,6 +154,81 @@ def test_search_fuzzy_fallback():
         assert results[0][2] == "fuzzy"
 
 
+def test_search_fuzzy_typo_missing_vowels():
+    """'strctrag' should match 'strictRAG' (missing i)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        idx = ProjectIndex(data_dir=Path(tmp))
+        results = idx.search("strctrag", _build_sample_index())
+        names = [r[0] for r in results]
+        assert "strictRAG" in names
+
+
+def test_search_fuzzy_token_query():
+    """Multi-token query 'sharp att' should match 'sharpattention'."""
+    with tempfile.TemporaryDirectory() as tmp:
+        idx = ProjectIndex(data_dir=Path(tmp))
+        results = idx.search("sharp att", _build_sample_index())
+        names = [r[0] for r in results]
+        assert "sharpattention" in names
+
+
+def test_search_fuzzy_prefix_of_token():
+    """'reddit' should match 'redditmath' via token prefix."""
+    with tempfile.TemporaryDirectory() as tmp:
+        idx = ProjectIndex(data_dir=Path(tmp))
+        results = idx.search("reddit", _build_sample_index())
+        # substring tier catches this, but let's make sure it works
+        assert len(results) >= 1
+        assert results[0][0] == "redditmath"
+
+
+def test_search_fuzzy_camelcase_token():
+    """'strict' should find 'strictRAG' — camelCase token boundary."""
+    with tempfile.TemporaryDirectory() as tmp:
+        idx = ProjectIndex(data_dir=Path(tmp))
+        # 'strict' is a substring so it hits tier 2, but the token
+        # logic should also work for non-substring cases
+        results = idx.search("rag", _build_sample_index())
+        names = [r[0] for r in results]
+        assert "strictRAG" in names
+
+
+def test_search_fuzzy_with_real_index():
+    """Test against a realistic set of project names."""
+    realistic = {
+        "hypHNSW": ["/p/hypHNSW"],
+        "mlx-manopt": ["/p/mlx-manopt"],
+        "strictRAG": ["/p/strictRAG"],
+        "IdeaSearch-fit": ["/p/IdeaSearch-fit"],
+        "IdeaSearch-fit-demo": ["/p/IdeaSearch-fit-demo"],
+        "sharpattention": ["/p/sharpattention"],
+        "aishell": ["/p/aishell"],
+        "code_embeddings": ["/p/code_embeddings"],
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        idx = ProjectIndex(data_dir=Path(tmp))
+
+        # "hnsw" should find hypHNSW
+        results = idx.search("hnsw", realistic)
+        names = [r[0] for r in results]
+        assert "hypHNSW" in names
+
+        # "mlx man" should find mlx-manopt
+        results = idx.search("mlx man", realistic)
+        names = [r[0] for r in results]
+        assert "mlx-manopt" in names
+
+        # "ideasearch" should find the IdeaSearch family
+        results = idx.search("ideasearch", realistic)
+        names = [r[0] for r in results]
+        assert any("IdeaSearch" in n for n in names)
+
+        # "code embed" should find code_embeddings
+        results = idx.search("code embed", realistic)
+        names = [r[0] for r in results]
+        assert "code_embeddings" in names
+
+
 def test_search_no_results():
     with tempfile.TemporaryDirectory() as tmp:
         idx = ProjectIndex(data_dir=Path(tmp))

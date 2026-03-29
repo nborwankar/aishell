@@ -55,6 +55,22 @@ An intelligent command line tool built in Python that provides web search, intel
 - **Quick CLI**: `aisearch "query"` shortcut with `-s` (source) and `-l` (limit) flags
 - **Scale**: Tested with 1,764 conversations (Gemini 33, ChatGPT 811, Claude 920), zero failures
 
+### 🔎 Project Finder (`pfind`)
+- Inverted index mapping project leaf-directory names to absolute paths
+- Three-tier search: exact → substring → fuzzy
+- Fuzzy search uses multi-signal scoring: subsequence matching, token splitting (camelCase, hyphens, underscores), and prefix bonus
+- Handles 120+ projects across nested directory trees with symlink deduplication
+- Shell-composable output: `cd $(aishell pfind aishell)`
+
+```bash
+aishell pfind aishell          # Exact match
+aishell pfind strict           # Substring match → strictRAG
+aishell pfind strct            # Fuzzy match → strictRAG (missing vowel)
+aishell pfind "mlx man"        # Token match → mlx-manopt
+aishell pfind --rebuild        # Rescan and rebuild index
+aishell pfind --stats          # Show index statistics
+```
+
 ### 📝 Interaction Logging
 - Persistent transcript logging to `LLMTranscript.md`
 - Separate error logging to `LLMErrors.md` with detailed information
@@ -236,6 +252,8 @@ env reload                 # Reload .env file
 - `aishell search "query"` - Web search with multiple engines
 - `aishell find "pattern"` - File system search with advanced filters
 - `aishell spotlight "query"` - Quick Spotlight search
+- `aishell pfind <query>` - Find projects by name (exact/substring/fuzzy)
+- `aishell pfind --rebuild` - Rescan roots and rebuild project index
 - `aishell llm [provider] "text"` - Single LLM query
 - `aishell collate <provider1> <provider2> "text"` - Multi-LLM comparison
 - `aishell mcp <server> <command>` - MCP server interaction
@@ -401,6 +419,7 @@ env mcp-list              # List all available server types
 aishell/
 ├── cli.py               # Main CLI entry point
 ├── commands/            # Command group modules
+│   ├── pfind.py         # Project finder: inverted index + fuzzy search
 │   ├── gemini.py        # Gemini: login, pull, import (DOM scraping)
 │   ├── chatgpt.py       # ChatGPT: login, pull, import (API + ZIP)
 │   ├── claude_export.py # Claude: login, pull, import (API + ZIP)

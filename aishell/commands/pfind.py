@@ -12,8 +12,8 @@ Data lives at ~/Projects/pfind/ (configurable):
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
-from difflib import SequenceMatcher
 from pathlib import Path
 
 import click
@@ -52,6 +52,74 @@ DEFAULT_PROJECT_MARKERS = {
     "Cargo.toml",
     "go.mod",
 }
+
+
+def _tokenize(name: str) -> list[str]:
+    """Split a project name into lowercase tokens on -, _, and camelCase boundaries.
+
+    Examples:
+        "hypHNSW"        → ["hyp", "hnsw"]
+        "mlx-manopt"     → ["mlx", "manopt"]
+        "strictRAG"      → ["strict", "rag"]
+        "IdeaSearch-fit" → ["idea", "search", "fit"]
+    """
+    # Insert boundary before runs of uppercase followed by lowercase (camelCase)
+    # and between lowercase/digit and uppercase
+    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", name)
+    # Split run of uppercase: "HNSW" stays together, but "RAGfoo" → "RA Gfoo"
+    spaced = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", spaced)
+    # Split on hyphens, underscores, spaces
+    parts = re.split(r"[-_ ]+", spaced)
+    return [p.lower() for p in parts if p]
+
+
+def _is_subsequence(needle: str, haystack: str) -> bool:
+    """Check if needle chars appear in order in haystack."""
+    it = iter(haystack)
+    return all(c in it for c in needle)
+
+
+def _fuzzy_score(query: str, name: str) -> float:
+    """Score a query against a project name (both already lowercased).
+
+    Returns 0.0 for no match, higher is better (max ~1.0).
+
+    Signals combined:
+      1. Subsequence match — query chars appear in order in name
+      2. Token overlap — query tokens match name tokens (prefix or full)
+      3. Prefix bonus — query matches the start of the name
+      4. Length-normalized char overlap — handles short queries well
+    """
+    score = 0.0
+
+    # Signal 1: subsequence (e.g. "strct" in "strictrag")
+    if _is_subsequence(query, name):
+        # Ratio of query length to name length rewards tighter matches
+        score += 0.4 * (len(query) / len(name))
+
+    # Signal 2: token overlap
+    q_tokens = _tokenize(query)
+    n_tokens = _tokenize(name)
+    if q_tokens and n_tokens:
+        matched = 0
+        for qt in q_tokens:
+            for nt in n_tokens:
+                if nt.startswith(qt) or qt.startswith(nt):
+                    matched += 1
+                    break
+        token_ratio = matched / len(q_tokens)
+        score += 0.4 * token_ratio
+
+    # Signal 3: prefix bonus
+    if name.startswith(query):
+        score += 0.2
+    elif any(nt.startswith(query) for nt in n_tokens):
+        score += 0.1
+
+    # Minimum threshold to count as a match
+    if score < 0.15:
+        return 0.0
+    return score
 
 
 class ProjectIndex:
@@ -183,12 +251,12 @@ class ProjectIndex:
         if results:
             return sorted(results, key=lambda r: r[0].lower())
 
-        # Tier 3: fuzzy match
+        # Tier 3: fuzzy match (multi-signal scoring)
         scored = []
         for name, paths in index.items():
-            ratio = SequenceMatcher(None, q, name.lower()).ratio()
-            if ratio > 0.4:
-                scored.append((name, paths, "fuzzy", ratio))
+            score = _fuzzy_score(q, name.lower())
+            if score > 0.0:
+                scored.append((name, paths, "fuzzy", score))
 
         scored.sort(key=lambda r: r[3], reverse=True)
         return [(name, paths, "fuzzy") for name, paths, _, _ in scored[:5]]

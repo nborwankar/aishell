@@ -49,6 +49,7 @@ aishell/                          # Project root
 │   ├── cli.py                    # Main CLI entry point with Click commands
 │   ├── commands/                 # Command plugins (auto-discovered)
 │   │   ├── __init__.py           # discover_commands() + skill registry
+│   │   ├── pfind.py              # Project finder: inverted index + fuzzy search
 │   │   ├── gemini.py             # Gemini: login, pull, import
 │   │   ├── chatgpt.py            # ChatGPT: login, pull, import, reimport
 │   │   ├── claude_export.py      # Claude: login, pull, import
@@ -147,6 +148,9 @@ aishell conversations browse -s gemini       # TUI pre-filtered by source
 **Shortcut**: `aisearch` is a top-level CLI command — equivalent to `aishell conversations search` but faster to type. Flags: `-l/--limit`, `-s/--source [gemini|chatgpt|claude]`, `-c/--conversations`, `--db`.
 
 **TUI Browser**: Two-panel Textual app — conversation list (left) + turn viewer (right). Keybindings: `/` search, `1`/`2`/`3`/`0` source filter, `q` quit.
+
+### Project Finder — pfind (2026-03)
+Fast project lookup via inverted index (`~/Projects/pfind/invindex.json`). Three-tier search: exact → substring → fuzzy. Fuzzy uses multi-signal scoring (subsequence, token splitting on camelCase/hyphens/underscores, prefix bonus). 21 tests. Single file: `aishell/commands/pfind.py`.
 
 ### Plugin Architecture (2026-02)
 Commands are auto-discovered via module scanning — drop a `.py` file (or package with `cli.py`) into `aishell/commands/` and it registers automatically. Each module MAY export a `SKILL` dict with description, capabilities, examples, and agent-callable tool definitions. The registry is internal (`list_skills()`, `get_skill()`) — not user-facing. See `docs/plans/SKILLS_PLAN.md`.

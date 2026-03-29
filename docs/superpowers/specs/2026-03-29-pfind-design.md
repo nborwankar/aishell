@@ -145,7 +145,11 @@ Three tiers, tried in order:
 
 1. **Exact match** (case-insensitive): key.lower() == query.lower()
 2. **Substring match** (case-insensitive): query.lower() in key.lower()
-3. **Fuzzy fallback**: if tiers 1-2 return nothing, rank all keys by `difflib.SequenceMatcher` ratio, show top 5 with score > 0.4
+3. **Fuzzy fallback** (multi-signal scoring): if tiers 1-2 return nothing, score all keys using three signals:
+   - **Subsequence**: query chars appear in order in name (catches typos/missing vowels: "strct" → "strictRAG")
+   - **Token overlap**: split name on `-`, `_`, camelCase boundaries; match query tokens to name tokens by prefix ("mlx man" → "mlx-manopt")
+   - **Prefix bonus**: query matching start of name or start of any token scores higher
+   - Top 5 results with combined score > 0.15 are returned
 
 ## Implementation
 

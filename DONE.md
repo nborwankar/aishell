@@ -1,5 +1,27 @@
 # DONE - Development Log
 
+## pfind — Project Finder with Inverted Index — 2026-03-29
+
+### Overview
+Added `aishell pfind` subcommand — fast project lookup across 120+ projects in nested directory trees. Builds an inverted index (`~/Projects/pfind/invindex.json`) mapping leaf directory names to absolute paths.
+
+### Implementation
+- **Single file**: `aishell/commands/pfind.py` — zero external deps beyond Click/Rich
+- **Index builder**: Recursive scan with symlink dedup, exclude dirs, project markers
+- **Three-tier search**: exact (case-insensitive) → substring → fuzzy
+- **Fuzzy search (improved)**: Replaced naive `SequenceMatcher` with multi-signal scorer:
+  - Subsequence matching (catches missing vowels: "strct" → "strictRAG")
+  - Token splitting on camelCase, hyphens, underscores ("mlx man" → "mlx-manopt")
+  - Prefix bonus for start-of-name matches
+- **CLI**: `--rebuild`, `--stats`, `--roots`, `--add-root`, composable output for `cd $(aishell pfind ...)`
+- **21 tests**: 5 build, 5 original search, 5 new fuzzy search, 2 collision/no-result, 4 CLI
+
+### Key Commits
+- `cfe93fa` — feat(pfind): project finder with inverted index — 16 tests passing
+- TBD — feat(pfind): improved fuzzy search with multi-signal scoring — 21 tests
+
+---
+
 ## Docs Reorg + Task Planner Skill — 2026-02-25 to 2026-03-03
 
 ### Docs Reorganization (Feb 25)
