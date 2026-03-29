@@ -1,0 +1,48 @@
+name: ICICI Savings Accounts Extraction
+url: https://www.icicibank.com
+actions:
+- type: navigate
+  url: https://www.icicibank.com
+  wait_until: networkidle
+  description: Navigate to ICICI Bank homepage
+
+- type: hover
+  selector: "a:has-text('Accounts')"
+  timeout: 30000
+  description: Hover over Accounts menu
+
+- type: wait
+  selector: "a:has-text('Savings Account')"
+  state: visible
+  timeout: 30000
+  description: Wait for Savings Account submenu
+
+- type: click
+  selector: "a:has-text('Savings Account')"
+  timeout: 30000
+  description: Click on Savings Account
+
+- type: wait
+  duration: 3000
+  description: Wait for account types page
+
+- type: extract
+  selectors:
+    page_title: title
+    main_heading: h1
+    account_info: ".account-type, .product-info, article"
+  extract_type: text
+  multiple: true
+  description: Extract savings account details
+
+output:
+  format: json
+  file: icici_savings_accounts_data.json
+
+metadata:
+  category: banking
+  product_type: savings_account
+  frequency: monthly
+
+llm_provider: ClaudeLLMProvider
+fallback_provider: null

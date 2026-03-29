@@ -1,0 +1,52 @@
+name: ICICI Branch Locator
+url: https://www.icicibank.com/branch-atm-locator
+actions:
+- type: navigate
+  url: https://www.icicibank.com/branch-atm-locator
+  wait_until: networkidle
+  description: Navigate to branch locator page
+
+- type: wait
+  duration: 3000
+  description: Wait for page to fully load
+
+- type: type
+  selector: "input[type='text'], input[placeholder*='search'], input[placeholder*='location'], #search-input"
+  text: Mumbai
+  clear_first: true
+  delay: 100
+  description: Type location in search box
+
+- type: wait
+  duration: 2000
+  description: Wait for suggestions to load
+
+- type: click
+  selector: ".suggestion-item, .autocomplete-item, li[role='option']"
+  timeout: 30000
+  description: Click first suggestion
+
+- type: wait
+  duration: 3000
+  description: Wait for search results
+
+- type: extract
+  selectors:
+    page_title: title
+    results: ".branch-result, .location-item, .search-result"
+  extract_type: text
+  multiple: true
+  description: Extract branch details
+
+output:
+  format: json
+  file: icici_branches_mumbai.json
+
+metadata:
+  category: banking
+  product_type: branch_info
+  location: Mumbai
+  frequency: monthly
+
+llm_provider: ClaudeLLMProvider
+fallback_provider: null

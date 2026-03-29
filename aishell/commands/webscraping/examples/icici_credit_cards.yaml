@@ -1,0 +1,57 @@
+name: ICICI Credit Cards Extraction
+url: https://www.icicibank.com
+actions:
+- type: navigate
+  url: https://www.icicibank.com
+  wait_until: networkidle
+  description: Navigate to ICICI Bank homepage
+
+- type: hover
+  selector: "a:has-text('Cards')"
+  timeout: 30000
+  description: Hover over Cards menu
+
+- type: wait
+  selector: "a:has-text('Credit Cards')"
+  state: visible
+  timeout: 30000
+  description: Wait for Credit Cards submenu
+
+- type: click
+  selector: "a:has-text('Credit Cards')"
+  timeout: 30000
+  description: Click on Credit Cards
+
+- type: wait
+  duration: 3000
+  description: Wait for cards listing page
+
+- type: scroll
+  direction: down
+  amount: 500
+  description: Scroll to load all cards
+
+- type: wait
+  duration: 2000
+  description: Wait for lazy-loaded content
+
+- type: extract
+  selectors:
+    page_title: title
+    main_heading: h1
+    card_sections: ".card-item, .product-card, article"
+  extract_type: text
+  multiple: true
+  description: Extract all credit card details
+
+output:
+  format: json
+  file: icici_credit_cards_data.json
+
+metadata:
+  category: banking
+  product_type: credit_card
+  frequency: weekly
+
+llm_provider: ClaudeLLMProvider
+fallback_provider: null

@@ -1,0 +1,48 @@
+name: ICICI Home Loans Extraction
+url: https://www.icicibank.com
+actions:
+- type: navigate
+  url: https://www.icicibank.com
+  wait_until: networkidle
+  description: Navigate to ICICI Bank homepage
+
+- type: hover
+  selector: "a:has-text('Loans')"
+  timeout: 30000
+  description: Hover over Loans menu
+
+- type: wait
+  selector: "a:has-text('Home Loan')"
+  state: visible
+  timeout: 30000
+  description: Wait for Home Loan submenu to appear
+
+- type: click
+  selector: "a:has-text('Home Loan')"
+  timeout: 30000
+  description: Click on Home Loan link
+
+- type: wait
+  duration: 3000
+  description: Wait for product page to load
+
+- type: extract
+  selectors:
+    page_title: title
+    main_heading: h1
+    content_sections: ".content-section, .product-info, article"
+  extract_type: text
+  multiple: false
+  description: Extract home loan page details
+
+output:
+  format: json
+  file: icici_home_loans_data.json
+
+metadata:
+  category: banking
+  product_type: home_loan
+  frequency: weekly
+
+llm_provider: ClaudeLLMProvider
+fallback_provider: null

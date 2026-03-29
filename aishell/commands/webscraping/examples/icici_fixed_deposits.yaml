@@ -1,0 +1,53 @@
+name: ICICI Fixed Deposits Rates
+url: https://www.icicibank.com
+actions:
+- type: navigate
+  url: https://www.icicibank.com
+  wait_until: networkidle
+  description: Navigate to ICICI Bank homepage
+
+- type: hover
+  selector: "a:has-text('Deposits')"
+  timeout: 30000
+  description: Hover over Deposits menu
+
+- type: wait
+  selector: "a:has-text('Fixed Deposit')"
+  state: visible
+  timeout: 30000
+  description: Wait for Fixed Deposit submenu
+
+- type: click
+  selector: "a:has-text('Fixed Deposit')"
+  timeout: 30000
+  description: Click on Fixed Deposit
+
+- type: wait
+  duration: 3000
+  description: Wait for FD page to load
+
+- type: scroll
+  direction: down
+  amount: 300
+  description: Scroll to rates section
+
+- type: extract
+  selectors:
+    page_title: title
+    main_heading: h1
+    rates_info: "table, .rates-table, .interest-rates"
+  extract_type: text
+  multiple: true
+  description: Extract FD interest rates
+
+output:
+  format: json
+  file: icici_fd_rates_data.json
+
+metadata:
+  category: banking
+  product_type: fixed_deposit
+  frequency: weekly
+
+llm_provider: ClaudeLLMProvider
+fallback_provider: null
