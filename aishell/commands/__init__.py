@@ -60,23 +60,23 @@ def discover_commands(parent_group):
             else:
                 module = importlib.import_module(f"aishell.commands.{modname}")
 
-            # Find the first click.Group in the module
-            group = None
+            # Find the first click.Group or click.Command in the module
+            cmd = None
             for attr_name in dir(module):
                 obj = getattr(module, attr_name)
-                if isinstance(obj, click.Group):
+                if isinstance(obj, click.BaseCommand):
                     parent_group.add_command(obj)
-                    group = obj
-                    logger.debug("Registered command group: %s", obj.name)
+                    cmd = obj
+                    logger.debug("Registered command: %s", obj.name)
                     break
 
             # Collect skill metadata
-            if group is not None:
+            if cmd is not None:
                 skill = getattr(module, "SKILL", None)
                 if skill is not None:
-                    _registry[group.name] = skill
-                else:
-                    _registry[group.name] = _skill_from_click_group(group)
+                    _registry[cmd.name] = skill
+                elif isinstance(cmd, click.Group):
+                    _registry[cmd.name] = _skill_from_click_group(cmd)
 
         except Exception as e:
             logger.warning("Failed to load command module '%s': %s", modname, e)
