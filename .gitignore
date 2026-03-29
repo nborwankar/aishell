@@ -69,4 +69,4 @@ wheels/
 *.spec
 
 # Web scraping examples (site-specific configs, not for public repo)
-usecases/webscraping/examples/
+aishell/commands/webscraping/examples/
