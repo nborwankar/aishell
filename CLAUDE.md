@@ -52,6 +52,14 @@ aishell/                          # Project root
 │   │   ├── gemini.py             # Gemini: login, pull, import
 │   │   ├── chatgpt.py            # ChatGPT: login, pull, import, reimport
 │   │   ├── claude_export.py      # Claude: login, pull, import
+│   │   ├── webscraping/          # LLM-assisted web scraping
+│   │   │   ├── cli.py            # Click group: navigate, configs
+│   │   │   ├── navigator.py      # Playwright navigation engine
+│   │   │   ├── llm_navigator.py  # LLM task-to-action translation
+│   │   │   ├── actions.py        # Action type definitions
+│   │   │   ├── extractors.py     # Data extraction utilities
+│   │   │   ├── config.py         # YAML config management
+│   │   │   └── examples/         # Example YAML configs (gitignored)
 │   │   └── conversations/        # Shared export infrastructure
 │   │       ├── browser.py        # Chrome/CDP helpers, fetch_json
 │   │       ├── schema.py         # slugify, ROLE_MAP, convert_to_schema
@@ -97,7 +105,6 @@ aishell/                          # Project root
 │   ├── LLMTranscript.md          # Runtime LLM interaction logs
 │   ├── LLMErrors.md              # Runtime LLM error logs
 │   └── ...                       # Search results, test outputs
-├── usecases/                     # Use case examples
 │
 └── ~/.aishell/{gemini,chatgpt,claude}/  # Per-provider data (runtime)
     ├── raw/                      # Raw API/DOM extraction JSONs
