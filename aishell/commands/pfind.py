@@ -147,7 +147,29 @@ class ProjectIndex:
         for root in roots:
             self._scan_dir(Path(root), index, excludes, markers, seen_real)
 
+        # Include well-known projects that live inside container directories
+        # and would otherwise be hidden (their parent gets indexed as a project
+        # and blocks descent). Add more paths here as needed.
+        extra_paths = self._load_extra_paths()
+        for extra in extra_paths:
+            p = Path(extra)
+            if p.is_dir() and self._is_project(p, markers):
+                real = str(p.resolve())
+                if real not in seen_real:
+                    seen_real.add(real)
+                    index.setdefault(p.name, []).append(real)
+
         return index
+
+    def _load_extra_paths(self) -> list[str]:
+        """Load extra project paths from config, or return defaults."""
+        config = self.load_config()
+        return config.get(
+            "extra_paths",
+            [
+                str(Path.home() / "Projects" / "dirs" / "metaproject"),
+            ],
+        )
 
     def _scan_dir(
         self,
