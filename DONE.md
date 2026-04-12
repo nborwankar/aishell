@@ -1,5 +1,40 @@
 # DONE - Development Log
 
+## Directory Cleanup + Webscraping Reorg + ChatGPT Projects API Exploration — 2026-03-28 to 2026-04-11
+
+### Directory Cleanup (Mar 28)
+- Deleted cruft: root `__pycache__/`, `venv/`, `aishell/venv/`, `aishell/scrape/`, `aishell/tools/`
+- Moved `usecases/webscraping/` → `aishell/commands/webscraping/` as proper auto-discovered CLI plugin
+- Created `aishell/commands/webscraping/cli.py` with Click group: `aishell webscraping navigate` + `configs`
+- Extracted navigate command from monolithic `cli.py` (~293 lines removed)
+- Updated `.gitignore` and `CLAUDE.md` directory tree
+
+### Key Commits
+- `e55d86c` — refactor: move webscraping modules from usecases/ to aishell/commands/webscraping/
+- `dc7841e` — feat: add webscraping CLI plugin (aishell webscraping navigate)
+- `cc6805d` — refactor: extract navigate command into webscraping plugin
+- `fb961f7` — chore: remove usecases/ dir, update gitignore
+- `4b1f848` — docs: update CLAUDE.md for webscraping command relocation
+
+### ChatGPT Projects API Exploration (Apr 3-11)
+- Built raw CDP probe script (`scripts/probe_chatgpt_projects.py`) — bypasses broken Playwright node driver
+- Probed 15+ ChatGPT backend-api endpoints to map project API surface
+- Discovered: ChatGPT Projects are gizmos with `g-p-` prefix
+
+**API findings:**
+- `GET /backend-api/gizmos/{g-p-id}` — project metadata (name, description, instructions)
+- `GET /backend-api/gizmos/{g-p-id}/conversations` — conversations in that project
+- No dedicated project listing endpoint — scrape `g-p-*` IDs from sidebar HTML
+- User has 5 projects, 24 project conversations (already included in regular pull, just untagged)
+- `gizmo_id` filter on `/conversations` is unreliable (silently ignored)
+
+### Beads Issues Created
+- `aishell-enr` [P1 bug] — Fix Playwright node driver (broken in base conda env)
+- `aishell-nav` [P2 task] — Add project field to conversation schema
+- `aishell-h05` [P2 feature] — Add ChatGPT project metadata to pull command (depends on nav)
+
+---
+
 ## pfind — Project Finder with Inverted Index — 2026-03-29
 
 ### Overview
